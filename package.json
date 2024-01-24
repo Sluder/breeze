@@ -18,7 +18,7 @@
     "prepublishOnly": "npm run test"
   },
   "dependencies": {
-    "@indigo-labs/dexter": "file:../dexter",
+    "@indigo-labs/dexter": "^5.1.0",
     "@indigo-labs/iris-sdk": "file:../iris-sdk",
     "axios": "^0.26.1"
   },

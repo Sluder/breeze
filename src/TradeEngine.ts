@@ -9,9 +9,8 @@ import { OrderService } from '@app/services/OrderService';
 
 export class TradeEngine {
 
-    private readonly _irisHost: string;
     private readonly _strategies: BaseStrategy[];
-    private readonly _config: TradeEngineConfig;
+    private  _config: TradeEngineConfig;
 
     private readonly _irisApi: IrisApiService;
     private readonly _irisWebsocket: IrisWebsocketService;
@@ -23,18 +22,14 @@ export class TradeEngine {
 
     private _strategyTimers: NodeJS.Timeout[] = [];
 
-    constructor(irisHost: string, strategies: BaseStrategy[], config: TradeEngineConfig) {
-        this._irisHost = irisHost;
+    constructor(strategies: BaseStrategy[], config: TradeEngineConfig) {
         this._strategies = strategies;
-        this._config = config;
 
-        // Defaults
-        this._config.appName = this._config.appName ?? 'Breeze';
-        this._config.neverSpendAda = this._config.neverSpendAda ?? 10;
+        this.loadConfig(config);
 
         // Services
-        this._irisApi = new IrisApiService(this._irisHost);
-        this._irisWebsocket = new IrisWebsocketService(this._irisHost);
+        this._irisApi = new IrisApiService(this._config.irisApiHost);
+        this._irisWebsocket = new IrisWebsocketService(this._config.irisWebsocketHost);
         this._indicators = new IndicatorService();
         this._walletService = new WalletService();
         this._orderService = new OrderService(this, this._config);
@@ -91,7 +86,7 @@ export class TradeEngine {
             strategy.onBoot(this);
 
             // Run timers if strategy requests it
-            if (strategy.config.runEveryMilliseconds > 0) {
+            if (strategy.config && strategy.config.runEveryMilliseconds > 0) {
                 const timer: NodeJS.Timeout = setInterval(() => {
                     this.logInfo(`[${this._config.appName}] Strategy '${strategy.name}' Started`);
 
@@ -140,6 +135,18 @@ export class TradeEngine {
         this._strategies.forEach((strategy: BaseStrategy) => strategy.onShutdown(this));
 
         this.logInfo(`[${this._config.appName}] TradeEngine shutdown`);
+    }
+
+    private loadConfig(config: TradeEngineConfig): void {
+        this._config = config;
+
+        // Defaults
+        this._config.appName = this._config.appName ?? 'Breeze';
+        this._config.neverSpendAda = this._config.neverSpendAda ?? 10;
+
+        if (! this._config.irisWebsocketHost.startsWith('ws')) {
+            throw new Error(`Invalid 'irisWebsocketHost', must start with 'ws' or 'wss'`);
+        }
     }
 
 }

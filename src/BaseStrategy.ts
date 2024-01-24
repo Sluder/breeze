@@ -6,9 +6,9 @@ export abstract class BaseStrategy {
 
     public abstract name: string;
 
-    public config: StrategyConfig;
+    public config: StrategyConfig | undefined;
 
-    protected constructor(config: StrategyConfig) {
+    constructor(config?: StrategyConfig) {
         this.config = config;
     }
 

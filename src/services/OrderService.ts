@@ -1,4 +1,4 @@
-import { DexTransaction, SplitSwapRequest, CancelSwapRequest, SwapFee, SwapRequest } from '../../../dexter/src';
+import { DexTransaction, SplitSwapRequest, CancelSwapRequest, SwapFee, SwapRequest } from '@indigo-labs/dexter';
 import { TradeEngine } from '@app/TradeEngine';
 import { TradeEngineConfig } from '@app/types';
 

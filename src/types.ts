@@ -7,6 +7,8 @@ export type StrategyConfig = {
 
 export type TradeEngineConfig = {
     appName?: string,
+    irisWebsocketHost: string,
+    irisApiHost: string,
     seedPhrase: string[],
     canSubmitOrders: boolean,
     neverSpendAda?: number,
