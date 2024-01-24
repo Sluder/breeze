@@ -1,7 +1,6 @@
 import { IrisApiService, IrisWebsocketService } from '@indigo-labs/iris-sdk';
 import { BaseStrategy } from '@app/BaseStrategy';
-import { Logger } from 'winston';
-import { logger } from '@app/logger';
+import { createLogger, format, Logger, transports } from 'winston';
 import { IndicatorService } from '@app/services/IndicatorService';
 import { BlockfrostProvider, Dexter, KupoProvider } from '@indigo-labs/dexter';
 import { TradeEngineConfig } from '@app/types';
@@ -20,6 +19,9 @@ export class TradeEngine {
     private readonly _walletService: WalletService;
     private readonly _orderService: OrderService;
     private readonly _dexter: Dexter;
+    private readonly _logger: Logger;
+
+    private _strategyTimers: NodeJS.Timeout[] = [];
 
     constructor(irisHost: string, strategies: BaseStrategy[], config: TradeEngineConfig) {
         this._irisHost = irisHost;
@@ -38,7 +40,19 @@ export class TradeEngine {
         this._orderService = new OrderService(this, this._config);
         this._dexter = new Dexter({
             metadataMsgBranding: this._config.appName,
-            shouldSubmitOrders: config.shouldSubmitOrders,
+            shouldSubmitOrders: config.canSubmitOrders,
+        });
+        this._logger = createLogger({
+            transports: [
+                new transports.Console(),
+                new transports.File({ dirname: config.logDirectory, filename: 'error.log', level: 'error' }),
+                new transports.File({ dirname: config.logDirectory, filename: 'info.log', level: 'info' }),
+            ],
+            format: format.combine(
+                format.colorize(),
+                format.timestamp({ format: 'MM-DD HH:mm:ss' }),
+                format.printf(({ timestamp, level, message }) => `[${timestamp}] ${level}: ${message}`),
+            ),
         });
     }
 
@@ -63,27 +77,30 @@ export class TradeEngine {
     }
 
     public logInfo(message: string, ...meta: any[]): Logger {
-        return logger.info(message, meta);
+        return this._logger.info(message, meta);
     }
 
     public logError(message: string, ...meta: any[]): Logger {
-        return logger.error(message, meta);
+        return this._logger.error(message, meta);
     }
 
-    private boot(): Promise<void> {
+    public boot(): Promise<void> {
         this._strategies.forEach((strategy: BaseStrategy) => {
             this._irisWebsocket.addListener(strategy.onWebsocketMessage);
 
             strategy.onBoot(this);
 
+            // Run timers if strategy requests it
             if (strategy.config.runEveryMilliseconds > 0) {
-                setInterval(() => {
+                const timer: NodeJS.Timeout = setInterval(() => {
                     this.logInfo(`[${this._config.appName}] Strategy '${strategy.name}' Started`);
 
                     strategy.onTimer();
 
                     this.logInfo(`[${this._config.appName}] Strategy '${strategy.name}' Completed`);
                 }, strategy.config.runEveryMilliseconds);
+
+                this._strategyTimers.push(timer);
             }
         });
 
@@ -113,7 +130,16 @@ export class TradeEngine {
         ).then(() => {
             this.logInfo(`[${this._config.appName}] Loaded wallet '${this._walletService.address}'`);
             this.logInfo(`[${this._config.appName}] TradeEngine booted`);
+
+            this._config.seedPhrase = [];
         });
+    }
+
+    public shutdown(): void {
+        this._strategyTimers.forEach((timer: NodeJS.Timeout) => clearInterval(timer));
+        this._strategies.forEach((strategy: BaseStrategy) => strategy.onShutdown(this));
+
+        this.logInfo(`[${this._config.appName}] TradeEngine shutdown`);
     }
 
 }

@@ -8,7 +8,8 @@ export type StrategyConfig = {
 export type TradeEngineConfig = {
     appName?: string,
     seedPhrase: string[],
-    shouldSubmitOrders: boolean,
+    canSubmitOrders: boolean,
     neverSpendAda?: number,
     submissionProviderConfig: BlockfrostConfig | KupmiosConfig,
+    logDirectory: string,
 }

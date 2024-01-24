@@ -13,17 +13,22 @@ export abstract class BaseStrategy {
     }
 
     /**
-     * Boot up your strategy.
+     * Strategy is being booted.
      */
     abstract onBoot(app: TradeEngine): void;
 
     /**
-     * Received a new websocket message.
+     * Strategy is being shutdown.
+     */
+    abstract onShutdown(app: TradeEngine): void;
+
+    /**
+     * Receiving a new websocket message.
      */
     abstract onWebsocketMessage(message: WsMessage): void;
 
     /**
-     * Runs on interval depending on the provided strategy configuration.
+     * Runs on interval set on the engine configuration.
      */
     abstract onTimer(): void;
 

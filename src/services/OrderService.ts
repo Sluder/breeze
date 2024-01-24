@@ -1,4 +1,4 @@
-import { DexTransaction, SplitSwapRequest, SwapFee, SwapRequest } from '../../../dexter/src';
+import { DexTransaction, SplitSwapRequest, CancelSwapRequest, SwapFee, SwapRequest } from '../../../dexter/src';
 import { TradeEngine } from '@app/TradeEngine';
 import { TradeEngineConfig } from '@app/types';
 
@@ -13,7 +13,7 @@ export class OrderService {
     }
 
     public submit(request: SwapRequest | SplitSwapRequest) {
-        this._engine.logInfo(`[${this._engineConfig.appName}] Building order ...`);
+        this._engine.logInfo(`[${this._engineConfig.appName}] Building swap order ...`);
 
         const totalFees: bigint = request.getSwapFees().reduce((totalFees: bigint, fee: SwapFee) => totalFees + fee.value, 0n);
         this._engine.logInfo(`[${this._engineConfig.appName}] \t\t Estimated receive : ${request.getEstimatedReceive()}`);
@@ -27,10 +27,28 @@ export class OrderService {
                 this._engine.logInfo(`[${this._engineConfig.appName}] \t\t Submitting order ...`);
             })
             .onSubmitted((transaction: DexTransaction) => {
-                this._engine.logInfo(`[${this._engineConfig.appName}] \t\t  Order submitted : ${transaction.hash}`);
+                this._engine.logInfo(`[${this._engineConfig.appName}] \t\t Order submitted : ${transaction.hash}`);
             })
             .onError((transaction: DexTransaction) => {
-                this._engine.logInfo(`[${this._engineConfig.appName}] \t\t  Error submitting order : ` + transaction.error?.reasonRaw);
+                this._engine.logInfo(`[${this._engineConfig.appName}] \t\t Error submitting order : ` + transaction.error?.reasonRaw);
+            });
+    }
+
+    public cancel(request: CancelSwapRequest) {
+        this._engine.logInfo(`[${this._engineConfig.appName}] Building cancel order ...`);
+
+        return request.cancel()
+            .onSigning(() => {
+                this._engine.logInfo(`[${this._engineConfig.appName}] \t\t Signing order ...`);
+            })
+            .onSubmitting(() => {
+                this._engine.logInfo(`[${this._engineConfig.appName}] \t\t Submitting order ...`);
+            })
+            .onSubmitted((transaction: DexTransaction) => {
+                this._engine.logInfo(`[${this._engineConfig.appName}] \t\t Cancel submitted : ${transaction.hash}`);
+            })
+            .onError((transaction: DexTransaction) => {
+                this._engine.logInfo(`[${this._engineConfig.appName}] \t\t Error cancelling order : ` + transaction.error?.reasonRaw);
             });
     }
 
