@@ -31,11 +31,11 @@ export class WalletService {
             return Promise.reject('Dexter data provider not set.');
         }
         if (! dexter.walletProvider) {
-            return Promise.resolve('Dexter wallet provider not set');
+            return Promise.reject('Dexter wallet provider not set');
         }
 
         this.address = dexter.walletProvider.address();
-
+console.log(this.address)
         return dexter.dataProvider.utxos(this.address)
             .then((utxos: UTxO[]) => {
                 const assetBalances: AssetBalance[] = utxos.map((utxo: UTxO) => utxo.assetBalances).flat();

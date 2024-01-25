@@ -10,7 +10,7 @@ import { OrderService } from '@app/services/OrderService';
 export class TradeEngine {
 
     private readonly _strategies: BaseStrategy[];
-    private  _config: TradeEngineConfig;
+    private _config: TradeEngineConfig;
 
     private readonly _irisApi: IrisApiService;
     private readonly _irisWebsocket: IrisWebsocketService;
@@ -80,19 +80,21 @@ export class TradeEngine {
     }
 
     public boot(): Promise<void> {
-        this._strategies.forEach((strategy: BaseStrategy) => {
+        this._strategies.forEach(async (strategy: BaseStrategy) => {
             this._irisWebsocket.addListener(strategy.onWebsocketMessage);
 
-            strategy.onBoot(this);
+            await strategy.onBoot(this);
+
+            this.logInfo(`[${this._config.appName}] Strategy '${strategy.identifier}' booted`);
 
             // Run timers if strategy requests it
             if (strategy.config && strategy.config.runEveryMilliseconds > 0) {
-                const timer: NodeJS.Timeout = setInterval(() => {
-                    this.logInfo(`[${this._config.appName}] Strategy '${strategy.name}' Started`);
+                const timer: NodeJS.Timeout = setInterval(async () => {
+                    this.logInfo(`[${this._config.appName}] Strategy '${strategy.identifier}' started`);
 
-                    strategy.onTimer();
+                    await strategy.onTimer();
 
-                    this.logInfo(`[${this._config.appName}] Strategy '${strategy.name}' Completed`);
+                    this.logInfo(`[${this._config.appName}] Strategy '${strategy.identifier}' completed`);
                 }, strategy.config.runEveryMilliseconds);
 
                 this._strategyTimers.push(timer);
@@ -123,7 +125,12 @@ export class TradeEngine {
             this._config.seedPhrase,
             this._config.submissionProviderConfig,
         ).then(() => {
-            this.logInfo(`[${this._config.appName}] Loaded wallet '${this._walletService.address}'`);
+            this.logInfo(
+                this._config.canSubmitOrders
+                    ? `[${this._config.appName}] Loaded wallet '${this._walletService.address}'`
+                    : `[${this._config.appName}] Ordering disabled, skipping loading wallet`
+            );
+
             this.logInfo(`[${this._config.appName}] TradeEngine booted`);
 
             this._config.seedPhrase = [];
@@ -132,7 +139,7 @@ export class TradeEngine {
 
     public shutdown(): void {
         this._strategyTimers.forEach((timer: NodeJS.Timeout) => clearInterval(timer));
-        this._strategies.forEach((strategy: BaseStrategy) => strategy.onShutdown(this));
+        this._strategies.forEach(async (strategy: BaseStrategy) => await strategy.onShutdown(this));
 
         this.logInfo(`[${this._config.appName}] TradeEngine shutdown`);
     }

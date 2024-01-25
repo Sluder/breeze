@@ -4,7 +4,7 @@ import { TradeEngine } from '@app/TradeEngine';
 
 export abstract class BaseStrategy {
 
-    public abstract name: string;
+    public abstract identifier: string;
 
     public config: StrategyConfig | undefined;
 
@@ -15,21 +15,21 @@ export abstract class BaseStrategy {
     /**
      * Strategy is being booted.
      */
-    abstract onBoot(app: TradeEngine): void;
+    abstract onBoot(app: TradeEngine): Promise<any>;
 
     /**
      * Strategy is being shutdown.
      */
-    abstract onShutdown(app: TradeEngine): void;
+    abstract onShutdown(app: TradeEngine): Promise<any>;
 
     /**
      * Receiving a new websocket message.
      */
-    abstract onWebsocketMessage(message: WsMessage): void;
+    abstract onWebsocketMessage(message: WsMessage): Promise<any>;
 
     /**
      * Runs on interval set on the engine configuration.
      */
-    abstract onTimer(): void;
+    abstract onTimer(): Promise<any>;
 
 }
