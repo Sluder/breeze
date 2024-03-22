@@ -21,6 +21,8 @@ export class TEMA extends BaseIndicator {
                 low: ticks[i].low,
                 close: indicators.ema(ticks, length),
                 volume: ticks[i].volume,
+                entity: ticks[i].entity,
+                resolution: ticks[i].resolution,
             });
         }
 

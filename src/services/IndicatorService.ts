@@ -5,19 +5,19 @@ import { MomentumIndicators } from '@app/indicators/momentum/MomentumIndicators'
 
 export class IndicatorService {
 
-    public trend() {
+    public trend(): TrendIndicators {
         return new TrendIndicators();
     }
 
-    public volume() {
+    public volume(): VolumeIndicators {
         return new VolumeIndicators();
     }
 
-    public volatility() {
+    public volatility(): VolatilityIndicators {
         return new VolatilityIndicators();
     }
 
-    public momentum() {
+    public momentum(): MomentumIndicators {
         return new MomentumIndicators();
     }
 
