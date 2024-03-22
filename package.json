@@ -20,7 +20,8 @@
   "dependencies": {
     "@indigo-labs/dexter": "^5.1.0",
     "@indigo-labs/iris-sdk": "file:../iris-sdk",
-    "axios": "^0.26.1"
+    "axios": "^0.26.1",
+    "node-cache": "^5.1.2"
   },
   "devDependencies": {
     "@babel/core": "^7.21.4",

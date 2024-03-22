@@ -6,6 +6,8 @@ import { BlockfrostProvider, Dexter, KupoProvider } from '@indigo-labs/dexter';
 import { TradeEngineConfig } from '@app/types';
 import { WalletService } from '@app/services/WalletService';
 import { OrderService } from '@app/services/OrderService';
+import { BaseCacheStorage } from '@app/storage/BaseCacheStorage';
+import { NodeCacheStorage } from '@app/storage/NodeCacheStorage';
 
 export class TradeEngine {
 
@@ -19,6 +21,7 @@ export class TradeEngine {
     private readonly _orderService: OrderService;
     private readonly _dexter: Dexter;
     private readonly _logger: Logger;
+    private readonly _cache: BaseCacheStorage;
 
     private _strategyTimers: NodeJS.Timeout[] = [];
 
@@ -49,6 +52,7 @@ export class TradeEngine {
                 format.printf(({ timestamp, level, message }) => `[${timestamp}] ${level}: ${message}`),
             ),
         });
+        this._cache = config.cacheStorage ?? new NodeCacheStorage();
     }
 
     public get api(): IrisApiService {
@@ -71,6 +75,10 @@ export class TradeEngine {
         return this._orderService;
     }
 
+    public get cache(): BaseCacheStorage {
+        return this._cache;
+    }
+
     public logInfo(message: string, ...meta: any[]): Logger {
         return this._logger.info(message, meta);
     }
@@ -79,8 +87,8 @@ export class TradeEngine {
         return this._logger.error(message, meta);
     }
 
-    public boot(): Promise<void> {
-        this._strategies.forEach(async (strategy: BaseStrategy) => {
+    public async boot(): Promise<void> {
+        for (const strategy of this._strategies) {
             this._irisWebsocket.addListener(strategy.onWebsocketMessage);
 
             await strategy.onBoot(this);
@@ -99,9 +107,10 @@ export class TradeEngine {
 
                 this._strategyTimers.push(timer);
             }
-        });
+        }
 
         this._irisWebsocket.connect();
+        await this._cache.boot();
 
         if ('kupoUrl' in this._config.submissionProviderConfig) {
             this._dexter.withDataProvider(
