@@ -5,20 +5,19 @@ import { IndicatorService } from '@app/services/IndicatorService';
 import { BlockfrostProvider, Dexter, KupoProvider } from '@indigo-labs/dexter';
 import { TradeEngineConfig } from '@app/types';
 import { WalletService } from '@app/services/WalletService';
-import { OrderService } from '@app/services/OrderService';
 import { BaseCacheStorage } from '@app/storage/BaseCacheStorage';
 import { NodeCacheStorage } from '@app/storage/NodeCacheStorage';
+import { Order } from '@app/models/Order';
 
 export class TradeEngine {
 
+    private readonly _config: TradeEngineConfig;
     private readonly _strategies: BaseStrategy[];
-    private _config: TradeEngineConfig;
 
     private readonly _irisApi: IrisApiService;
     private readonly _irisWebsocket: IrisWebsocketService;
     private readonly _indicators: IndicatorService;
     private readonly _walletService: WalletService;
-    private readonly _orderService: OrderService;
     private readonly _dexter: Dexter;
     private readonly _logger: Logger;
     private readonly _cache: BaseCacheStorage;
@@ -27,15 +26,15 @@ export class TradeEngine {
 
     constructor(strategies: BaseStrategy[], config: TradeEngineConfig) {
         this._strategies = strategies;
+        this._config = config;
 
-        this.loadConfig(config);
+        this.checkConfig(config);
 
         // Services
         this._irisApi = new IrisApiService(this._config.irisApiHost);
         this._irisWebsocket = new IrisWebsocketService(this._config.irisWebsocketHost);
         this._indicators = new IndicatorService();
         this._walletService = new WalletService();
-        this._orderService = new OrderService(this, this._config);
         this._dexter = new Dexter({
             metadataMsgBranding: this._config.appName,
             shouldSubmitOrders: config.canSubmitOrders,
@@ -63,16 +62,16 @@ export class TradeEngine {
         return this._irisWebsocket;
     }
 
+    public get dexter(): Dexter {
+        return this._dexter;
+    }
+
     public get indicators(): IndicatorService {
         return this._indicators;
     }
 
     public get wallet(): WalletService {
         return this._walletService;
-    }
-
-    public get ordering(): OrderService {
-        return this._orderService;
     }
 
     public get cache(): BaseCacheStorage {
@@ -89,25 +88,33 @@ export class TradeEngine {
 
     public async boot(): Promise<void> {
         for (const strategy of this._strategies) {
-            this._irisWebsocket.addListener(strategy.onWebsocketMessage);
+            if (strategy.onWebsocketMessage) {
+                this._irisWebsocket.addListener(strategy.onWebsocketMessage);
+            }
 
-            await strategy.onBoot(this);
-
-            this.logInfo(`[${this._config.appName}] Strategy '${strategy.identifier}' booted`);
+            if (strategy.onBoot) {
+                await strategy.onBoot(this);
+            }
 
             // Run timers if strategy requests it
             if (strategy.config && strategy.config.runEveryMilliseconds > 0) {
                 const timer: NodeJS.Timeout = setInterval(async () => {
                     this.logInfo(`[${this._config.appName}] Strategy '${strategy.identifier}' started`);
 
-                    await strategy.onTimer();
+                    if (strategy.onTimer) {
+                        await strategy.onTimer();
+                    }
 
                     this.logInfo(`[${this._config.appName}] Strategy '${strategy.identifier}' completed`);
                 }, strategy.config.runEveryMilliseconds);
 
                 this._strategyTimers.push(timer);
             }
+
+            this.logInfo(`[${this._config.appName}] Strategy '${strategy.identifier}' booted`);
         }
+
+        this.logInfo(`[${this._config.appName}] Booted ${this._strategies.length} strategies`);
 
         this._irisWebsocket.connect();
         await this._cache.boot();
@@ -148,14 +155,20 @@ export class TradeEngine {
 
     public shutdown(): void {
         this._strategyTimers.forEach((timer: NodeJS.Timeout) => clearInterval(timer));
-        this._strategies.forEach(async (strategy: BaseStrategy) => await strategy.onShutdown(this));
+        this._strategies.forEach(async (strategy: BaseStrategy) => {
+            if (strategy.onShutdown) {
+                await strategy.onShutdown(this);
+            }
+        });
 
         this.logInfo(`[${this._config.appName}] TradeEngine shutdown`);
     }
 
-    private loadConfig(config: TradeEngineConfig): void {
-        this._config = config;
+    public order(): Order {
+        return new Order(this, this._config, this._walletService);
+    }
 
+    private checkConfig(config: TradeEngineConfig): void {
         // Defaults
         this._config.appName = this._config.appName ?? 'Breeze';
         this._config.neverSpendAda = this._config.neverSpendAda ?? 10;

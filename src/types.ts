@@ -1,5 +1,6 @@
 import { BlockfrostConfig, KupmiosConfig } from '@indigo-labs/dexter';
 import { BaseCacheStorage } from '@app/storage/BaseCacheStorage';
+import { SwapOrder } from '../../iris-sdk';
 
 export type StrategyConfig = {
     runEveryMilliseconds: number, // Use 0 to disable timer
@@ -16,4 +17,8 @@ export type TradeEngineConfig = {
     submissionProviderConfig: BlockfrostConfig | KupmiosConfig,
     logDirectory: string,
     cacheStorage?: BaseCacheStorage,
+}
+
+export type StrategyOrders = {
+    [strategyIdentifier: string]: SwapOrder[],
 }

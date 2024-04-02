@@ -1,4 +1,12 @@
-import { BlockfrostConfig, KupmiosConfig, LucidProvider, AssetBalance, BaseWalletProvider, Dexter, UTxO } from '@indigo-labs/dexter';
+import {
+    AssetBalance,
+    BaseWalletProvider,
+    BlockfrostConfig,
+    Dexter,
+    KupmiosConfig,
+    LucidProvider,
+    UTxO
+} from '@indigo-labs/dexter';
 
 export class WalletService {
 
@@ -7,7 +15,7 @@ export class WalletService {
     public balances: Map<string, bigint> = new Map<string, bigint>();
     public address: string = '';
 
-    public boot(dexter: Dexter, seedPhrase: string[], config: BlockfrostConfig | KupmiosConfig): Promise<any> {
+    public async boot(dexter: Dexter, seedPhrase: string[], config: BlockfrostConfig | KupmiosConfig): Promise<any> {
         const lucidProvider: LucidProvider = new LucidProvider();
 
         if (dexter.config.shouldSubmitOrders) {
@@ -26,7 +34,7 @@ export class WalletService {
         return Promise.resolve();
     }
 
-    private loadBalances(dexter: Dexter): Promise<any> {
+    private async loadBalances(dexter: Dexter): Promise<any> {
         if (! dexter.dataProvider) {
             return Promise.reject('Dexter data provider not set.');
         }
@@ -35,7 +43,7 @@ export class WalletService {
         }
 
         this.address = dexter.walletProvider.address();
-console.log(this.address)
+
         return dexter.dataProvider.utxos(this.address)
             .then((utxos: UTxO[]) => {
                 const assetBalances: AssetBalance[] = utxos.map((utxo: UTxO) => utxo.assetBalances).flat();

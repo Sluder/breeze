@@ -7,6 +7,7 @@ export abstract class BaseStrategy {
     public abstract identifier: string;
 
     public config: StrategyConfig | undefined;
+    public app: TradeEngine;
 
     constructor(config?: StrategyConfig) {
         this.config = config;
@@ -15,21 +16,25 @@ export abstract class BaseStrategy {
     /**
      * Strategy is being booted.
      */
-    abstract onBoot(app: TradeEngine): Promise<any>;
+    public onBoot(app: TradeEngine): Promise<any> {
+        this.app = app;
+
+        return Promise.resolve();
+    }
 
     /**
      * Strategy is being shutdown.
      */
-    abstract onShutdown(app: TradeEngine): Promise<any>;
+    public onShutdown?(app: TradeEngine): Promise<any>;
 
     /**
      * Receiving a new websocket message.
      */
-    abstract onWebsocketMessage(message: WsMessage): Promise<any>;
+    public onWebsocketMessage?(message: WsMessage): Promise<any>;
 
     /**
      * Runs on interval set on the engine configuration.
      */
-    abstract onTimer(): Promise<any>;
+    public onTimer?(): Promise<any>;
 
 }
