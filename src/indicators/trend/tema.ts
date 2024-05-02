@@ -13,20 +13,15 @@ export class TEMA extends BaseIndicator {
     }
 
     private calculateList(ticks: Tick[], length: number, indicators: TrendIndicators, list: Tick[]) {
+        const ticksCopy: Tick[] = [...list];
+
         for (let i = 0; i < ticks.length; i++) {
-            list.push({
-                time: ticks[i].time,
-                open: ticks[i].open,
-                high: ticks[i].high,
-                low: ticks[i].low,
-                close: indicators.ema(ticks, length),
-                volume: ticks[i].volume,
-                entity: ticks[i].entity,
-                resolution: ticks[i].resolution,
-            });
+            ticks[i].close = indicators.ema(ticks, length);
+
+            ticksCopy.push(ticks[i]);
         }
 
-        return list;
+        return ticksCopy;
     }
 
 }

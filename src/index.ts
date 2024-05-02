@@ -1,3 +1,4 @@
+export * from './utils';
 export * from './types';
 export * from './TradeEngine';
 export * from './BaseStrategy';
@@ -6,7 +7,6 @@ export * from './BaseStrategy';
  * Services
  */
 export * from './services/WalletService';
-export * from './services/OrderService';
 export * from './services/IndicatorService';
 
 /**

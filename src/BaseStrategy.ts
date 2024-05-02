@@ -1,4 +1,4 @@
-import { WsMessage } from '@indigo-labs/iris-sdk';
+import { WsResponse } from '@indigo-labs/iris-sdk';
 import { StrategyConfig } from '@app/types';
 import { TradeEngine } from '@app/TradeEngine';
 
@@ -30,7 +30,7 @@ export abstract class BaseStrategy {
     /**
      * Receiving a new websocket message.
      */
-    public onWebsocketMessage?(message: WsMessage): Promise<any>;
+    public onWebsocketMessage?(message: WsResponse): Promise<any>;
 
     /**
      * Runs on interval set on the engine configuration.

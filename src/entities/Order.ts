@@ -12,6 +12,7 @@ import { TradeEngine } from '@app/TradeEngine';
 import { TradeEngineConfig } from '@app/types';
 import { WalletService } from '@app/services/WalletService';
 import { tokensMatch } from '@app/utils';
+import { Trade } from '@app/entities/Trade';
 
 export class Order {
 
@@ -20,6 +21,8 @@ export class Order {
     private _walletService: WalletService;
 
     private _strategy: BaseStrategy | undefined;
+    private _trade: Trade | undefined;
+    private _liquidityPool: LiquidityPool;
 
     constructor(engine: TradeEngine, engineConfig: TradeEngineConfig, walletService: WalletService) {
         this._engine = engine;
@@ -27,16 +30,46 @@ export class Order {
         this._walletService = walletService;
     }
 
-    public fromStrategy(strategy: BaseStrategy): void {
+    public fromStrategy(strategy: BaseStrategy): Order {
         this._strategy = strategy;
+
+        return this;
     }
 
-    public async swap(liquidityPool: LiquidityPool, amount: bigint, inToken: Token, slippagePercent: number = 2): Promise<DexTransaction> {
+    public forTrade(trade: Trade): Order {
+        this._trade = trade;
+
+        return this;
+    }
+
+    public async submit(liquidityPool: LiquidityPool, amount: bigint, inToken: Token, slippagePercent: number = 2): Promise<DexTransaction | void> {
         if (! this._strategy) {
             return Promise.reject('Strategy must be set before submitting order');
         }
         if (! this._walletService.isWalletLoaded) {
             return Promise.reject('Wallet not loaded');
+        }
+
+        this._liquidityPool = liquidityPool;
+
+        const walletBalance: bigint = this._engine.wallet.balanceFromAsset(inToken === 'lovelace' ? 'lovelace' : inToken.identifier()) ?? 0n;
+        const neverSpendLovelace: bigint = BigInt((this._engineConfig.neverSpendAda ?? 0) * 10**6);
+
+        // Check never spend ADA
+        if (
+            inToken === 'lovelace'
+            && this._engineConfig.neverSpendAda
+            && amount > walletBalance - neverSpendLovelace
+        ) {
+            amount -= neverSpendLovelace;
+        }
+
+        // Validate amount
+        if (amount > walletBalance) {
+            return Promise.reject(`Invalid order amount. Amount larger than wallet balance of ${walletBalance}`);
+        }
+        if (amount <= 0n) {
+            return Promise.reject("Invalid order amount. 'config.neverSpendAda' could be the cause");
         }
 
         const inAmount: number = inToken === 'lovelace'
@@ -47,9 +80,9 @@ export class Order {
             : inToken.readableTicker;
         const outTokenName: string = tokensMatch(inToken, liquidityPool.tokenA)
             ? liquidityPool.tokenB.readableTicker
-            : (liquidityPool.tokenA  === 'lovelace' ? 'ADA' : liquidityPool.tokenA.readableTicker);
+            : (liquidityPool.tokenA  === 'lovelace' ? '₳' : liquidityPool.tokenA.readableTicker);
 
-        this._engine.logInfo(`[${this._engineConfig.appName}] ${liquidityPool.dex} ${inAmount} ${inTokenName} -> ${outTokenName}`);
+        this._engine.logInfo(`Order ${liquidityPool.dex} ${inAmount} ${inTokenName} -> ${outTokenName}`, this._strategy?.identifier ?? '');
 
         const request: SwapRequest = this._engine.dexter
             .newSwapRequest()
@@ -62,28 +95,35 @@ export class Order {
                     : new DexterAsset(inToken.policyId, inToken.nameHex, inToken.decimals ?? 0)
             );
 
-        return await this.submit(request);
+        return await this.send(request);
     }
 
-    private async submit(request: SwapRequest | SplitSwapRequest): Promise<DexTransaction> {
-        this._engine.logInfo(`[${this._engineConfig.appName}] \t\t Building swap order ...`);
+    private async send(request: SwapRequest | SplitSwapRequest): Promise<DexTransaction | void> {
+        this._engine.logInfo(`\t Building swap order ...`, this._strategy?.identifier ?? '');
+
+        const swapOutTokenDecimals: number = request.swapOutToken === 'lovelace' ? 6 : request.swapOutToken.decimals;
 
         const totalFees: bigint = request.getSwapFees().reduce((totalFees: bigint, fee: SwapFee) => totalFees + fee.value, 0n);
-        this._engine.logInfo(`[${this._engineConfig.appName}] \t\t Estimated receive : ${request.getEstimatedReceive()}`);
-        this._engine.logInfo(`[${this._engineConfig.appName}] \t\t Total Fees : ${Number(totalFees) / 10**6} ADA`);
+        this._engine.logInfo(`\t Estimated receive: ${Number(request.getEstimatedReceive()) / 10**swapOutTokenDecimals}`, this._strategy?.identifier ?? '');
+        this._engine.logInfo(`\t Total Fees: ${Number(totalFees) / 10**6} ₳`, this._strategy?.identifier ?? '');
+
+        if (! this._engineConfig.canSubmitOrders) {
+            this._engine.logInfo(`\t Trading disabled. Skipping`, this._strategy?.identifier ?? '');
+            return Promise.resolve();
+        }
 
         return request.submit()
             .onSigning(() => {
-                this._engine.logInfo(`[${this._engineConfig.appName}] \t\t Signing order ...`);
+                this._engine.logInfo(`\t Signing order ...`, this._strategy?.identifier ?? '');
             })
             .onSubmitting(() => {
-                this._engine.logInfo(`[${this._engineConfig.appName}] \t\t Submitting order ...`);
+                this._engine.logInfo(`\t Submitting order ...`, this._strategy?.identifier ?? '');
             })
             .onSubmitted((transaction: DexTransaction) => {
-                this._engine.logInfo(`[${this._engineConfig.appName}] \t\t Order submitted : ${transaction.hash}`);
+                this._engine.logInfo(`\t Order submitted : ${transaction.hash}`, this._strategy?.identifier ?? '');
             })
             .onError((transaction: DexTransaction) => {
-                this._engine.logInfo(`[${this._engineConfig.appName}] \t\t Error submitting order : ` + transaction.error?.reasonRaw);
+                this._engine.logError(`\t Error submitting order : ` + transaction.error?.reasonRaw, this._strategy?.identifier ?? '');
             })
             .onFinally((transaction: DexTransaction) => {
                 return Promise.resolve(transaction);
@@ -100,7 +140,7 @@ export class Order {
             liquidityPool.state?.reserveA ?? 0n,
             liquidityPool.state?.reserveB ?? 0n,
             liquidityPool.address,
-            '', //todo address
+            liquidityPool.orderAddress,
         );
     }
 

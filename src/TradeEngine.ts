@@ -7,7 +7,7 @@ import { TradeEngineConfig } from '@app/types';
 import { WalletService } from '@app/services/WalletService';
 import { BaseCacheStorage } from '@app/storage/BaseCacheStorage';
 import { NodeCacheStorage } from '@app/storage/NodeCacheStorage';
-import { Order } from '@app/models/Order';
+import { Order } from '@app/entities/Order';
 
 export class TradeEngine {
 
@@ -78,18 +78,22 @@ export class TradeEngine {
         return this._cache;
     }
 
-    public logInfo(message: string, ...meta: any[]): Logger {
-        return this._logger.info(message, meta);
+    public logInfo(message: string, title?: string): Logger {
+        title = title ?? this._config.appName;
+
+        return this._logger.info(`[${title}] ${message}`);
     }
 
-    public logError(message: string, ...meta: any[]): Logger {
-        return this._logger.error(message, meta);
+    public logError(message: string, title?: string): Logger {
+        title = title ?? this._config.appName;
+
+        return this._logger.error(`[${title}] ${message}`);
     }
 
     public async boot(): Promise<void> {
         for (const strategy of this._strategies) {
             if (strategy.onWebsocketMessage) {
-                this._irisWebsocket.addListener(strategy.onWebsocketMessage);
+                this._irisWebsocket.addListener(strategy.onWebsocketMessage.bind(strategy));
             }
 
             if (strategy.onBoot) {
@@ -99,24 +103,27 @@ export class TradeEngine {
             // Run timers if strategy requests it
             if (strategy.config && strategy.config.runEveryMilliseconds > 0) {
                 const timer: NodeJS.Timeout = setInterval(async () => {
-                    this.logInfo(`[${this._config.appName}] Strategy '${strategy.identifier}' started`);
+                    this.logInfo(`Strategy '${strategy.identifier}' started`);
 
                     if (strategy.onTimer) {
                         await strategy.onTimer();
                     }
 
-                    this.logInfo(`[${this._config.appName}] Strategy '${strategy.identifier}' completed`);
+                    this.logInfo(`Strategy '${strategy.identifier}' completed`);
                 }, strategy.config.runEveryMilliseconds);
 
                 this._strategyTimers.push(timer);
             }
 
-            this.logInfo(`[${this._config.appName}] Strategy '${strategy.identifier}' booted`);
+            this.logInfo(`Strategy '${strategy.identifier}' booted`);
         }
 
-        this.logInfo(`[${this._config.appName}] Booted ${this._strategies.length} strategies`);
+        this.logInfo(`Booted ${this._strategies.length} strategies`);
 
         this._irisWebsocket.connect();
+
+        this.logInfo(`Booted websocket connection`);
+
         await this._cache.boot();
 
         if ('kupoUrl' in this._config.submissionProviderConfig) {
@@ -141,13 +148,9 @@ export class TradeEngine {
             this._config.seedPhrase,
             this._config.submissionProviderConfig,
         ).then(() => {
-            this.logInfo(
-                this._config.canSubmitOrders
-                    ? `[${this._config.appName}] Loaded wallet '${this._walletService.address}'`
-                    : `[${this._config.appName}] Ordering disabled, skipping loading wallet`
-            );
+            this.logInfo(`Loaded wallet '${this._walletService.address}'`);
 
-            this.logInfo(`[${this._config.appName}] TradeEngine booted`);
+            this.logInfo(`TradeEngine booted`);
 
             this._config.seedPhrase = [];
         });
@@ -161,7 +164,7 @@ export class TradeEngine {
             }
         });
 
-        this.logInfo(`[${this._config.appName}] TradeEngine shutdown`);
+        this.logInfo(`TradeEngine shutdown`);
     }
 
     public order(): Order {

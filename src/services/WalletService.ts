@@ -18,20 +18,20 @@ export class WalletService {
     public async boot(dexter: Dexter, seedPhrase: string[], config: BlockfrostConfig | KupmiosConfig): Promise<any> {
         const lucidProvider: LucidProvider = new LucidProvider();
 
-        if (dexter.config.shouldSubmitOrders) {
-            if (seedPhrase.length === 0) {
-                return Promise.reject("Must provide seed phrase when 'canSubmitOrders' is true");
-            }
-
-            return lucidProvider.loadWalletFromSeedPhrase(seedPhrase, {}, config)
-                .then((walletProvider: BaseWalletProvider) => {
-                    dexter.withWalletProvider(walletProvider);
-
-                    return this.loadBalances(dexter);
-                });
+        if (dexter.config.shouldSubmitOrders && seedPhrase.length === 0) {
+            return Promise.reject("Must provide seed phrase when 'canSubmitOrders' is true");
         }
 
-        return Promise.resolve();
+        return lucidProvider.loadWalletFromSeedPhrase(seedPhrase, {}, config)
+            .then((walletProvider: BaseWalletProvider) => {
+                dexter.withWalletProvider(walletProvider);
+
+                return this.loadBalances(dexter);
+            });
+    }
+
+    public balanceFromAsset(assetIdentifier: string) {
+        return this.balances.get(assetIdentifier);
     }
 
     private async loadBalances(dexter: Dexter): Promise<any> {
