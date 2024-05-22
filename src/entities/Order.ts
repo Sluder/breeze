@@ -22,11 +22,10 @@ export class Order {
 
     private _strategy: BaseStrategy | undefined;
     private _trade: Trade | undefined;
-    private _liquidityPool: LiquidityPool;
 
-    constructor(engine: TradeEngine, engineConfig: TradeEngineConfig, walletService: WalletService) {
+    constructor(engine: TradeEngine, walletService: WalletService) {
         this._engine = engine;
-        this._engineConfig = engineConfig;
+        this._engineConfig = engine.config;
         this._walletService = walletService;
     }
 
@@ -44,13 +43,13 @@ export class Order {
 
     public async submit(liquidityPool: LiquidityPool, amount: bigint, inToken: Token, slippagePercent: number = 2): Promise<DexTransaction | void> {
         if (! this._strategy) {
-            return Promise.reject('Strategy must be set before submitting order');
+            this._engine.logError('Strategy must be set before submitting order');
+            return Promise.resolve();
         }
         if (! this._walletService.isWalletLoaded) {
-            return Promise.reject('Wallet not loaded');
+            this._engine.logError('Wallet not loaded');
+            return Promise.resolve();
         }
-
-        this._liquidityPool = liquidityPool;
 
         const walletBalance: bigint = this._engine.wallet.balanceFromAsset(inToken === 'lovelace' ? 'lovelace' : inToken.identifier()) ?? 0n;
         const neverSpendLovelace: bigint = BigInt((this._engineConfig.neverSpendAda ?? 0) * 10**6);
@@ -66,10 +65,12 @@ export class Order {
 
         // Validate amount
         if (amount > walletBalance) {
-            return Promise.reject(`Invalid order amount. Amount larger than wallet balance of ${walletBalance}`);
+            this._engine.logError(`Invalid order amount. Amount larger than wallet balance of ${walletBalance}`, this._strategy?.identifier ?? '');
+            return Promise.resolve();
         }
         if (amount <= 0n) {
-            return Promise.reject("Invalid order amount. 'config.neverSpendAda' could be the cause");
+            this._engine.logError("Invalid order amount. 'config.neverSpendAda' could be the cause", this._strategy?.identifier ?? '');
+            return Promise.resolve();
         }
 
         const inAmount: number = inToken === 'lovelace'
@@ -120,12 +121,14 @@ export class Order {
                 this._engine.logInfo(`\t Submitting order ...`, this._strategy?.identifier ?? '');
             })
             .onSubmitted((transaction: DexTransaction) => {
-                this._engine.logInfo(`\t Order submitted : ${transaction.hash}`, this._strategy?.identifier ?? '');
+                this._engine.logInfo(`\t Order submitted: ${transaction.hash}`, this._strategy?.identifier ?? '');
             })
             .onError((transaction: DexTransaction) => {
-                this._engine.logError(`\t Error submitting order : ` + transaction.error?.reasonRaw, this._strategy?.identifier ?? '');
+                this._engine.logError(`\t Error submitting order: ` + transaction.error?.reasonRaw, this._strategy?.identifier ?? '');
             })
-            .onFinally((transaction: DexTransaction) => {
+            .onFinally(async (transaction: DexTransaction) => {
+                await this._engine.wallet.loadBalances();
+
                 return Promise.resolve(transaction);
             });
     }

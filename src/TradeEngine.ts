@@ -8,6 +8,7 @@ import { WalletService } from '@app/services/WalletService';
 import { BaseCacheStorage } from '@app/storage/BaseCacheStorage';
 import { NodeCacheStorage } from '@app/storage/NodeCacheStorage';
 import { Order } from '@app/entities/Order';
+import { ConnectorService } from '@app/services/ConnectorService';
 
 export class TradeEngine {
 
@@ -21,6 +22,8 @@ export class TradeEngine {
     private readonly _dexter: Dexter;
     private readonly _logger: Logger;
     private readonly _cache: BaseCacheStorage;
+    private _backtestService: ConnectorService;
+    private _balanceUpdateTimer: NodeJS.Timeout;
 
     private _strategyTimers: NodeJS.Timeout[] = [];
 
@@ -54,6 +57,10 @@ export class TradeEngine {
         this._cache = config.cacheStorage ?? new NodeCacheStorage();
     }
 
+    public get config(): TradeEngineConfig {
+        return this._config;
+    }
+
     public get api(): IrisApiService {
         return this._irisApi;
     }
@@ -76,6 +83,10 @@ export class TradeEngine {
 
     public get cache(): BaseCacheStorage {
         return this._cache;
+    }
+
+    public get strategies(): BaseStrategy[] {
+        return this._strategies;
     }
 
     public logInfo(message: string, title?: string): Logger {
@@ -121,10 +132,10 @@ export class TradeEngine {
         this.logInfo(`Booted ${this._strategies.length} strategies`);
 
         this._irisWebsocket.connect();
-
         this.logInfo(`Booted websocket connection`);
 
         await this._cache.boot();
+        this.logInfo(`Booted cache`);
 
         if ('kupoUrl' in this._config.submissionProviderConfig) {
             this._dexter.withDataProvider(
@@ -143,20 +154,23 @@ export class TradeEngine {
             return Promise.reject("Unknown 'submissionProviderConfig' provided");
         }
 
-        return this._walletService.boot(
-            this._dexter,
-            this._config.seedPhrase,
-            this._config.submissionProviderConfig,
-        ).then(() => {
+        return Promise.all([
+            this._walletService.boot(this, this._config.seedPhrase, this._config.submissionProviderConfig),
+            this.loadBacktesting(),
+        ]).then(() => {
             this.logInfo(`Loaded wallet '${this._walletService.address}'`);
-
             this.logInfo(`TradeEngine booted`);
 
             this._config.seedPhrase = [];
+
+            this._balanceUpdateTimer = setInterval(() => {
+                this._walletService.loadBalances();
+            }, 2_000);
         });
     }
 
     public shutdown(): void {
+        clearInterval(this._balanceUpdateTimer);
         this._strategyTimers.forEach((timer: NodeJS.Timeout) => clearInterval(timer));
         this._strategies.forEach(async (strategy: BaseStrategy) => {
             if (strategy.onShutdown) {
@@ -164,11 +178,11 @@ export class TradeEngine {
             }
         });
 
-        this.logInfo(`TradeEngine shutdown`);
+        this.logInfo('TradeEngine shutdown');
     }
 
     public order(): Order {
-        return new Order(this, this._config, this._walletService);
+        return new Order(this, this._walletService);
     }
 
     private checkConfig(config: TradeEngineConfig): void {
@@ -179,6 +193,15 @@ export class TradeEngine {
         if (! this._config.irisWebsocketHost.startsWith('ws')) {
             throw new Error(`Invalid 'irisWebsocketHost', must start with 'ws' or 'wss'`);
         }
+    }
+
+    private async loadBacktesting(): Promise<any> {
+        if (! this._config.backtestConfig || ! this._config.backtestConfig.enabled) return;
+
+        this._backtestService = new ConnectorService(this._config.backtestConfig.port, this);
+
+        return this._backtestService.boot()
+            .then(() => this.logInfo('Backtesting connector booted'));
     }
 
 }

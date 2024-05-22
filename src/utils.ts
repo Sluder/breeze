@@ -16,3 +16,11 @@ export function tokenFromIdentifier(identifier: string, decimals: number = 0) {
         decimals,
     )
 }
+
+export function unixToSlot(timestamp: number): number {
+    return Math.floor(timestamp - 1596059091000 / 1000) + 4492800;
+}
+
+export function slotToUnix(slot: number): number {
+    return 1596491091 + slot - 4924800;
+}

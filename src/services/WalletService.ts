@@ -7,6 +7,7 @@ import {
     LucidProvider,
     UTxO
 } from '@indigo-labs/dexter';
+import { TradeEngine } from '@app/TradeEngine';
 
 export class WalletService {
 
@@ -15,18 +16,22 @@ export class WalletService {
     public balances: Map<string, bigint> = new Map<string, bigint>();
     public address: string = '';
 
-    public async boot(dexter: Dexter, seedPhrase: string[], config: BlockfrostConfig | KupmiosConfig): Promise<any> {
+    private _engine: TradeEngine;
+
+    public async boot(engine: TradeEngine, seedPhrase: string[], config: BlockfrostConfig | KupmiosConfig): Promise<any> {
+        this._engine = engine;
+
         const lucidProvider: LucidProvider = new LucidProvider();
 
-        if (dexter.config.shouldSubmitOrders && seedPhrase.length === 0) {
+        if (engine.dexter.config.shouldSubmitOrders && seedPhrase.length === 0) {
             return Promise.reject("Must provide seed phrase when 'canSubmitOrders' is true");
         }
 
         return lucidProvider.loadWalletFromSeedPhrase(seedPhrase, {}, config)
             .then((walletProvider: BaseWalletProvider) => {
-                dexter.withWalletProvider(walletProvider);
+                engine.dexter.withWalletProvider(walletProvider);
 
-                return this.loadBalances(dexter);
+                return this.loadBalances();
             });
     }
 
@@ -34,17 +39,17 @@ export class WalletService {
         return this.balances.get(assetIdentifier);
     }
 
-    private async loadBalances(dexter: Dexter): Promise<any> {
-        if (! dexter.dataProvider) {
+    public async loadBalances(): Promise<any> {
+        if (! this._engine.dexter.dataProvider) {
             return Promise.reject('Dexter data provider not set.');
         }
-        if (! dexter.walletProvider) {
+        if (! this._engine.dexter.walletProvider) {
             return Promise.reject('Dexter wallet provider not set');
         }
 
-        this.address = dexter.walletProvider.address();
+        this.address = this._engine.dexter.walletProvider.address();
 
-        return dexter.dataProvider.utxos(this.address)
+        return this._engine.dexter.dataProvider.utxos(this.address)
             .then((utxos: UTxO[]) => {
                 const assetBalances: AssetBalance[] = utxos.map((utxo: UTxO) => utxo.assetBalances).flat();
 

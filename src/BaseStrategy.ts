@@ -1,6 +1,7 @@
 import { WsResponse } from '@indigo-labs/iris-sdk';
 import { StrategyConfig } from '@app/types';
 import { TradeEngine } from '@app/TradeEngine';
+import { Backtest } from '@app/entities/Backtest';
 
 export abstract class BaseStrategy {
 
@@ -21,6 +22,12 @@ export abstract class BaseStrategy {
 
         return Promise.resolve();
     }
+
+    /**
+     * Strategy is being backtested.
+     * Here is when you can load historic 3rd party data.
+     */
+    public beforeBacktest?(app: TradeEngine, backtest: Backtest): Promise<any>;
 
     /**
      * Strategy is being shutdown.

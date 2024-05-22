@@ -1,10 +1,24 @@
 import { BlockfrostConfig, KupmiosConfig } from '@indigo-labs/dexter';
 import { BaseCacheStorage } from '@app/storage/BaseCacheStorage';
-import { SwapOrder } from '../../iris-sdk';
+import {
+    Asset,
+    DepositOrder,
+    LiquidityPool,
+    LiquidityPoolState,
+    OperationStatus,
+    SwapOrder, Tick,
+    WithdrawOrder
+} from '@indigo-labs/iris-sdk';
+import { TradeEngine } from '@app/TradeEngine';
 
 export type StrategyConfig = {
     runEveryMilliseconds: number, // Use 0 to disable timer
     params: any,                  // Extra parameters you can provide
+}
+
+export type BacktestConfig = {
+    enabled: boolean,
+    port: number,
 }
 
 export type TradeEngineConfig = {
@@ -17,8 +31,32 @@ export type TradeEngineConfig = {
     submissionProviderConfig: BlockfrostConfig | KupmiosConfig,
     logDirectory: string,
     cacheStorage?: BaseCacheStorage,
+    backtestConfig?: BacktestConfig,
 }
 
-export type StrategyOrders = {
-    [strategyIdentifier: string]: SwapOrder[],
+export type BacktestRunConfig = {
+    fromTimestamp: number,
+    toTimestamp: number,
+    strategyName: string,
+    engine: TradeEngine,
+    initialBalances?: Map<string, bigint>,
+    filteredAssets?: Asset[],
+}
+
+export type BacktestableEntity =
+    | Tick
+    | LiquidityPool
+    | LiquidityPoolState
+    | SwapOrder
+    | DepositOrder
+    | WithdrawOrder
+    | OperationStatus;
+
+export enum BacktestStep {
+    Initializing = 'Initializing',
+    Complete = 'Complete',
+}
+
+export type TimestampWindows = {
+    [fromTimestamp: number]: number,
 }
