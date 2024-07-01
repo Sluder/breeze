@@ -3,6 +3,8 @@ import express from 'express';
 import { Backtest } from '@app/entities/Backtest';
 import { BacktestOrder } from '@app/entities/BacktestOrder';
 import { Asset } from '@indigo-labs/iris-sdk';
+import { TradeEngine } from '@app/TradeEngine';
+import { WalletService } from '@app/services/WalletService';
 
 export class BacktestController extends BaseController {
 
@@ -36,14 +38,16 @@ export class BacktestController extends BaseController {
             );
         }
 
-        this._currentBacktest = new Backtest({
-            fromTimestamp,
-            toTimestamp,
-            strategyName,
-            engine: this.engine,
-            initialBalances,
-            filteredAssets: ((filteredAssets ?? []) as string[]).map((assetIdentifier: string) => Asset.fromIdentifier(assetIdentifier)),
-        });
+        this._currentBacktest = new Backtest(
+            {
+                fromTimestamp,
+                toTimestamp,
+                strategyName,
+                engine: this.engine,
+                initialBalances,
+                filteredAssets: ((filteredAssets ?? []) as string[]).map((assetIdentifier: string) => Asset.fromIdentifier(assetIdentifier)),
+            },
+        );
         this._currentBacktest.run();
 
         return response.send(
@@ -53,9 +57,10 @@ export class BacktestController extends BaseController {
 
     private status(request: express.Request, response: express.Response) {
         if (! this._currentBacktest) {
-            return response.send(
-                super.failResponse('Backtest never created')
-            );
+            return response.send({
+                progress: 0,
+                error: '',
+            });
         }
 
         return response.send({
@@ -66,9 +71,7 @@ export class BacktestController extends BaseController {
 
     private orders(request: express.Request, response: express.Response) {
         if (! this._currentBacktest) {
-            return response.send(
-                super.failResponse('Backtest never created')
-            );
+            return response.send([]);
         }
 
         return response.send(

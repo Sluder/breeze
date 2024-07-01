@@ -18,11 +18,12 @@ export class TradeEngine {
     private readonly _irisApi: IrisApiService;
     private readonly _irisWebsocket: IrisWebsocketService;
     private readonly _indicators: IndicatorService;
-    private readonly _walletService: WalletService;
     private readonly _dexter: Dexter;
     private readonly _logger: Logger;
     private readonly _cache: BaseCacheStorage;
+    private _walletService: WalletService;
     private _backtestService: ConnectorService;
+    private _isBacktesting: boolean;
     private _balanceUpdateTimer: NodeJS.Timeout;
 
     private _strategyTimers: NodeJS.Timeout[] = [];
@@ -55,6 +56,7 @@ export class TradeEngine {
             ),
         });
         this._cache = config.cacheStorage ?? new NodeCacheStorage();
+        this._isBacktesting = false;
     }
 
     public get config(): TradeEngineConfig {
@@ -87,6 +89,14 @@ export class TradeEngine {
 
     public get strategies(): BaseStrategy[] {
         return this._strategies;
+    }
+
+    public isBacktesting(isBacktesting: boolean): void {
+        this._isBacktesting = isBacktesting;
+    }
+
+    public switchWallet(wallet: WalletService): void {
+        this._walletService = wallet;
     }
 
     public logInfo(message: string, title?: string): Logger {
@@ -137,21 +147,23 @@ export class TradeEngine {
         await this._cache.boot();
         this.logInfo(`Booted cache`);
 
-        if ('kupoUrl' in this._config.submissionProviderConfig) {
-            this._dexter.withDataProvider(
-                new KupoProvider({
-                    url: this._config.submissionProviderConfig.kupoUrl,
-                })
-            );
-        } else if ('projectId' in this._config.submissionProviderConfig) {
-            this._dexter.withDataProvider(
-                new BlockfrostProvider({
-                    url: this._config.submissionProviderConfig.url,
-                    projectId: this._config.submissionProviderConfig.projectId,
-                })
-            );
-        } else {
-            return Promise.reject("Unknown 'submissionProviderConfig' provided");
+        if (this.config.canSubmitOrders) {
+            if ('kupoUrl' in this._config.submissionProviderConfig) {
+                this._dexter.withDataProvider(
+                    new KupoProvider({
+                        url: this._config.submissionProviderConfig.kupoUrl,
+                    })
+                );
+            } else if ('projectId' in this._config.submissionProviderConfig) {
+                this._dexter.withDataProvider(
+                    new BlockfrostProvider({
+                        url: this._config.submissionProviderConfig.url,
+                        projectId: this._config.submissionProviderConfig.projectId,
+                    })
+                );
+            } else {
+                return Promise.reject("Unknown 'submissionProviderConfig' provided");
+            }
         }
 
         return Promise.all([
@@ -163,14 +175,17 @@ export class TradeEngine {
 
             this._config.seedPhrase = [];
 
-            this._balanceUpdateTimer = setInterval(() => {
-                this._walletService.loadBalances();
-            }, 2_000);
+            if (this.config.canSubmitOrders && this._walletService.isWalletLoaded) {
+                this._balanceUpdateTimer = setInterval(() => {
+                    this._walletService.loadBalances();
+                }, 2_000);
+            }
         });
     }
 
     public shutdown(): void {
         clearInterval(this._balanceUpdateTimer);
+
         this._strategyTimers.forEach((timer: NodeJS.Timeout) => clearInterval(timer));
         this._strategies.forEach(async (strategy: BaseStrategy) => {
             if (strategy.onShutdown) {
@@ -182,6 +197,10 @@ export class TradeEngine {
     }
 
     public order(): Order {
+        if (this._isBacktesting) {
+            throw new Error('Cant submit order, engine is currently backtesting');
+        }
+
         return new Order(this, this._walletService);
     }
 

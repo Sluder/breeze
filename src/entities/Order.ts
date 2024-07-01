@@ -12,16 +12,14 @@ import { TradeEngine } from '@app/TradeEngine';
 import { TradeEngineConfig } from '@app/types';
 import { WalletService } from '@app/services/WalletService';
 import { tokensMatch } from '@app/utils';
-import { Trade } from '@app/entities/Trade';
 
 export class Order {
 
-    private _engine: TradeEngine;
-    private _engineConfig: TradeEngineConfig;
-    private _walletService: WalletService;
+    protected _engine: TradeEngine;
+    protected _engineConfig: TradeEngineConfig;
+    protected _walletService: WalletService;
 
-    private _strategy: BaseStrategy | undefined;
-    private _trade: Trade | undefined;
+    protected _strategy: BaseStrategy | undefined;
 
     constructor(engine: TradeEngine, walletService: WalletService) {
         this._engine = engine;
@@ -35,13 +33,7 @@ export class Order {
         return this;
     }
 
-    public forTrade(trade: Trade): Order {
-        this._trade = trade;
-
-        return this;
-    }
-
-    public async submit(liquidityPool: LiquidityPool, amount: bigint, inToken: Token, slippagePercent: number = 2): Promise<DexTransaction | void> {
+    public async submit(liquidityPool: LiquidityPool, amount: bigint, inToken: Token, slot: number = 0, slippagePercent: number = 2): Promise<DexTransaction | void> {
         if (! this._strategy) {
             this._engine.logError('Strategy must be set before submitting order');
             return Promise.resolve();

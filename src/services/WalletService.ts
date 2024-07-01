@@ -2,7 +2,6 @@ import {
     AssetBalance,
     BaseWalletProvider,
     BlockfrostConfig,
-    Dexter,
     KupmiosConfig,
     LucidProvider,
     UTxO
@@ -23,7 +22,11 @@ export class WalletService {
 
         const lucidProvider: LucidProvider = new LucidProvider();
 
-        if (engine.dexter.config.shouldSubmitOrders && seedPhrase.length === 0) {
+        if (! engine.config.canSubmitOrders) {
+            return Promise.resolve();
+        }
+
+        if (seedPhrase.length === 0) {
             return Promise.reject("Must provide seed phrase when 'canSubmitOrders' is true");
         }
 

@@ -52,11 +52,6 @@ export type BacktestableEntity =
     | WithdrawOrder
     | OperationStatus;
 
-export enum BacktestStep {
-    Initializing = 'Initializing',
-    Complete = 'Complete',
-}
-
 export type TimestampWindows = {
     [fromTimestamp: number]: number,
 }

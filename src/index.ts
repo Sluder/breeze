@@ -24,7 +24,6 @@ export * from './indicators/volume/VolumeIndicators';
 export * from './entities/Backtest';
 export * from './entities/BacktestOrder';
 export * from './entities/Order';
-export * from './entities/Trade';
 
 export * as Dexter from '@indigo-labs/dexter';
 export * as Iris from '@indigo-labs/iris-sdk';

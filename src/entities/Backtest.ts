@@ -1,10 +1,12 @@
 import { unixToSlot } from '@app/utils';
-import { BacktestableEntity, BacktestRunConfig, BacktestStep, TimestampWindows } from '@app/types';
+import { BacktestableEntity, BacktestRunConfig, TimestampWindows } from '@app/types';
 import { TradeEngine } from '@app/TradeEngine';
 import { BaseStrategy } from '@app/BaseStrategy';
 import { WalletService } from '@app/services/WalletService';
 import { BacktestOrder } from '@app/entities/BacktestOrder';
 import { Asset } from '@indigo-labs/iris-sdk';
+
+const TIMESTAMP_GAP_SECONDS: number = 60 * 60 * 24;
 
 export class Backtest {
 
@@ -17,7 +19,6 @@ export class Backtest {
     private readonly _filterAssets: Asset[] = [];
 
     private readonly _mockWallet: WalletService;
-    private _currentStep: BacktestStep;
     private _currentSlot: number;
     private _entities: BacktestableEntity[];
     private _failError: string;
@@ -33,14 +34,15 @@ export class Backtest {
         this._engine = config.engine;
 
         this._mockWallet = new WalletService();
-        this._mockWallet.balances = new Map<string, bigint>(
-            Object.entries(config.initialBalances ?? {})
-        );
         this._currentSlot = this._fromSlot;
         this._entities = [];
         this._orders = [];
 
         this._mockWallet.isWalletLoaded = true;
+        this._engine.isBacktesting(true);
+        this._engine.switchWallet(this._mockWallet);
+
+        this.loadMockBalances(config.initialBalances);
     }
 
     get orders(): BacktestOrder[] {
@@ -54,7 +56,7 @@ export class Backtest {
     get progress(): number {
         if (this._failError) return 100;
 
-        return (this._currentSlot / this._toSlot) * 100;
+        return ((this._currentSlot - this._fromSlot) * 100) / (this._toSlot - this._fromSlot);
     }
 
     get fromSlot(): number {
@@ -77,9 +79,7 @@ export class Backtest {
      * Setup & run the backtest.
      */
     public async run(): Promise<any> {
-        this._currentStep = BacktestStep.Initializing;
-
-        this._engine.logInfo(`Running '${this._strategyName}' backtest From slot: ${this._fromSlot} (${this._fromTimestamp})  To Slot: ${this._toSlot} (${this._toTimestamp})`, 'Backtest');
+        this._engine.logInfo(`Running '${this._strategyName}' backtest from slot: ${this._fromSlot} (${this._fromTimestamp})  to slot: ${this._toSlot} (${this._toTimestamp})`, 'Backtest');
 
         const strategy: BaseStrategy | undefined = this._engine.strategies
             .find((strategy: BaseStrategy) => strategy.identifier === this._strategyName);
@@ -94,6 +94,8 @@ export class Backtest {
             return Promise.reject(this._failError);
         }
 
+        strategy.isBacktesting = true;
+
         if (strategy.beforeBacktest) {
             await strategy.beforeBacktest(this._engine, this);
         }
@@ -104,24 +106,32 @@ export class Backtest {
         // Retrieve test entities & feed into strategy
         const timestampWindows: TimestampWindows = this.generateTimestampWindows();
 
-        for(let [fromTimestamp, toTimestamp] of Object.entries(timestampWindows)) {
+        for (let [fromTimestamp, toTimestamp] of Object.entries(timestampWindows)) {
+            if (strategy.beforeDataPull) {
+                await strategy.beforeDataPull(Number(fromTimestamp), Number(toTimestamp));
+            }
+
             await this.loadEntities(Number(fromTimestamp), Number(toTimestamp));
 
             this._engine.logInfo(`Feeding '${this._strategyName}' test entities ...`, 'Backtest');
 
             // Feed entities into strategy
-            this._entities.forEach((entity: BacktestableEntity) => {
+            for (const entity of this._entities) {
+                await strategy.onWebsocketMessage?.bind(strategy)(entity);
+
                 this.updateCurrentSlot(entity);
-
-                strategy.onWebsocketMessage?.bind(strategy)(entity);
-            });
-
-            // Complete if no entities are on exact slot
-            this._currentSlot = this._toSlot;
-            this._currentStep = BacktestStep.Complete;
+            }
         }
 
+        this._currentSlot = this._toSlot;
+
         return Promise.resolve();
+    }
+
+    private loadMockBalances(balances: any) {
+        this._mockWallet.balances = new Map<string, bigint>([
+            ['lovelace', BigInt(balances['lovelace' ?? 1000_000000n])]
+        ])
     }
 
     private updateCurrentSlot(entity: BacktestableEntity): void {
@@ -141,6 +151,8 @@ export class Backtest {
         const order: BacktestOrder = new BacktestOrder(this._engine, this._mockWallet);
 
         order.fromBacktest(this);
+
+        this._orders.push(order);
 
         return order;
     }
@@ -175,15 +187,17 @@ export class Backtest {
                     return aSlot - bSlot;
                 });
 
-            this._engine.logInfo(`Loaded ${this._entities.length} test entities from ${fromTimestamp} -> ${toTimestamp}`, 'Backtest');
+            const fromSlot: number = unixToSlot(fromTimestamp);
+            const toSlot: number = unixToSlot(toTimestamp);
+
+            this._engine.logInfo(`Loaded ${this._entities.length} test entities from slot: ${fromSlot} (${fromTimestamp})  to slot: ${toSlot} (${toTimestamp})`, 'Backtest');
         })
     }
 
     private generateTimestampWindows(): TimestampWindows {
-        const gapSeconds: number = 60 * 60 * 24;
         const gapTimestamps: number[] = Array.from(
-            Array(Math.ceil((this._toTimestamp - this._fromTimestamp) / gapSeconds) + 1), (_, index: number) => {
-                const nextTimestamp: number = index * gapSeconds + this._fromTimestamp;
+            Array(Math.ceil((this._toTimestamp - this._fromTimestamp) / TIMESTAMP_GAP_SECONDS) + 1), (_, index: number) => {
+                const nextTimestamp: number = index * TIMESTAMP_GAP_SECONDS + this._fromTimestamp;
 
                 if (nextTimestamp > this._toTimestamp) return this._toTimestamp;
 

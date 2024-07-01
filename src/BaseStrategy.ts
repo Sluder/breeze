@@ -9,6 +9,7 @@ export abstract class BaseStrategy {
 
     public config: StrategyConfig | undefined;
     public app: TradeEngine;
+    public isBacktesting: boolean = true;
 
     constructor(config?: StrategyConfig) {
         this.config = config;
@@ -25,9 +26,13 @@ export abstract class BaseStrategy {
 
     /**
      * Strategy is being backtested.
-     * Here is when you can load historic 3rd party data.
      */
     public beforeBacktest?(app: TradeEngine, backtest: Backtest): Promise<any>;
+
+    /**
+     * Iris data is being pulled within this gap.
+     */
+    public beforeDataPull?(fromTimestamp: number, toTimestamp: number): Promise<any>;
 
     /**
      * Strategy is being shutdown.
