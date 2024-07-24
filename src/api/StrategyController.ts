@@ -1,4 +1,4 @@
-import { BaseController } from '@app/services/backtesting/BaseController';
+import { BaseController } from '@app/api/BaseController';
 import express from 'express';
 import { BaseStrategy } from '@app/BaseStrategy';
 

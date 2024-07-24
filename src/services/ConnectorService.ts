@@ -1,8 +1,8 @@
 import express, { Application } from 'express';
-import { BaseController } from '@app/services/backtesting/BaseController';
+import { BaseController } from '@app/api/BaseController';
 import { TradeEngine } from '@app/TradeEngine';
-import { StrategyController } from '@app/services/backtesting/StrategyController';
-import { BacktestController } from '@app/services/backtesting/BacktestController';
+import { StrategyController } from '@app/api/StrategyController';
+import { BacktestController } from '@app/api/BacktestController';
 import cors from 'cors';
 
 export class ConnectorService {

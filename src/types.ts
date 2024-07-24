@@ -21,6 +21,10 @@ export type BacktestConfig = {
     port: number,
 }
 
+export type DatabaseConfig = {
+    file: string,
+}
+
 export type TradeEngineConfig = {
     appName?: string,
     irisWebsocketHost: string,
@@ -31,7 +35,8 @@ export type TradeEngineConfig = {
     submissionProviderConfig: BlockfrostConfig | KupmiosConfig,
     logDirectory: string,
     cacheStorage?: BaseCacheStorage,
-    backtestConfig?: BacktestConfig,
+    backtest?: BacktestConfig,
+    database: DatabaseConfig,
 }
 
 export type BacktestRunConfig = {

@@ -1,10 +1,8 @@
-import { BaseController } from '@app/services/backtesting/BaseController';
+import { BaseController } from '@app/api/BaseController';
 import express from 'express';
 import { Backtest } from '@app/entities/Backtest';
 import { BacktestOrder } from '@app/entities/BacktestOrder';
-import { Asset } from '@indigo-labs/iris-sdk';
-import { TradeEngine } from '@app/TradeEngine';
-import { WalletService } from '@app/services/WalletService';
+import { Asset } from '../../../iris-sdk/src';
 
 export class BacktestController extends BaseController {
 

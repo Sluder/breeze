@@ -40,6 +40,7 @@ export class BacktestOrder extends Order {
             : this._liquidityPool.tokenA;
 
         this.updateWalletBalance()
+        await this.saveToDatabase()
 
         return Promise.resolve();
     }
@@ -89,6 +90,29 @@ export class BacktestOrder extends Order {
         this._walletService.balances.set(
             addFromBalance,
             swapRequest.getEstimatedReceive() + (this._walletService.balances.get(addFromBalance) ?? 0n),
+        );
+    }
+
+    private saveToDatabase(): Promise<number | undefined> {
+        const swapRequest: SwapRequest = this.toSwapRequest();
+        const totalFees: bigint = swapRequest.getSwapFees().reduce((totalFees: bigint, fee: SwapFee) => totalFees + fee.value, 0n);
+
+        if (! this._backtest.id) {
+            throw new Error('Backtest ID not set');
+        }
+
+        return this._engine.database.orders().insert(
+            this._liquidityPool.identifier,
+            this._strategy?.identifier ?? '',
+            swapRequest.swapInAmount,
+            swapRequest.getEstimatedReceive(),
+            swapRequest.swapInToken === 'lovelace' ? '' : swapRequest.swapInToken.identifier(),
+            swapRequest.swapOutToken === 'lovelace' ? '' : swapRequest.swapOutToken.identifier(),
+            swapRequest.slippagePercent,
+            totalFees,
+            slotToUnix(this._slot),
+            '',
+            this._backtest.id,
         );
     }
 

@@ -10,6 +10,7 @@ const TIMESTAMP_GAP_SECONDS: number = 60 * 60 * 24;
 
 export class Backtest {
 
+    private _savedId: number;
     private readonly _fromTimestamp: number;
     private readonly _toTimestamp: number;
     private readonly _fromSlot: number;
@@ -43,6 +44,10 @@ export class Backtest {
         this._engine.switchWallet(this._mockWallet);
 
         this.loadMockBalances(config.initialBalances);
+    }
+
+    get id(): number | undefined {
+        return this._savedId;
     }
 
     get orders(): BacktestOrder[] {
@@ -96,6 +101,7 @@ export class Backtest {
 
         strategy.isBacktesting = true;
 
+        await this.createId(strategy.identifier);
         if (strategy.beforeBacktest) {
             await strategy.beforeBacktest(this._engine, this);
         }
@@ -212,6 +218,15 @@ export class Backtest {
 
             return gaps;
         }, {});
+    }
+
+    private async createId(strategy: string): Promise<void> {
+        return this._engine.database.backtests().insert(strategy)
+            .then((id: number | undefined) => {
+                if (! id) throw new Error('Failed to create backtest in database');
+
+                this._savedId = id;
+            });
     }
 
 }

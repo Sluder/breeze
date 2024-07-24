@@ -9,6 +9,7 @@ export * from './BaseStrategy';
 export * from './services/WalletService';
 export * from './services/IndicatorService';
 export * from './services/ConnectorService';
+export * from './services/DatabaseService';
 
 /**
  * Indicators

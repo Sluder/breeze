@@ -9,6 +9,7 @@ import { BaseCacheStorage } from '@app/storage/BaseCacheStorage';
 import { NodeCacheStorage } from '@app/storage/NodeCacheStorage';
 import { Order } from '@app/entities/Order';
 import { ConnectorService } from '@app/services/ConnectorService';
+import { DatabaseService } from '@app/services/DatabaseService';
 
 export class TradeEngine {
 
@@ -23,6 +24,7 @@ export class TradeEngine {
     private readonly _cache: BaseCacheStorage;
     private _walletService: WalletService;
     private _backtestService: ConnectorService;
+    private _databaseService: DatabaseService;
     private _isBacktesting: boolean;
     private _balanceUpdateTimer: NodeJS.Timeout;
 
@@ -39,6 +41,7 @@ export class TradeEngine {
         this._irisWebsocket = new IrisWebsocketService(this._config.irisWebsocketHost);
         this._indicators = new IndicatorService();
         this._walletService = new WalletService();
+        this._databaseService = new DatabaseService(config.database);
         this._dexter = new Dexter({
             metadataMsgBranding: this._config.appName,
             shouldSubmitOrders: config.canSubmitOrders,
@@ -69,6 +72,10 @@ export class TradeEngine {
 
     public get websocket(): IrisWebsocketService {
         return this._irisWebsocket;
+    }
+
+    public get database(): DatabaseService {
+        return this._databaseService;
     }
 
     public get dexter(): Dexter {
@@ -141,6 +148,9 @@ export class TradeEngine {
 
         this.logInfo(`Booted ${this._strategies.length} strategies`);
 
+        await this._databaseService.boot();
+        this.logInfo(`Booted database connection`);
+
         this._irisWebsocket.connect();
         this.logInfo(`Booted websocket connection`);
 
@@ -183,15 +193,21 @@ export class TradeEngine {
         });
     }
 
-    public shutdown(): void {
+    public async shutdown(): Promise<void> {
         clearInterval(this._balanceUpdateTimer);
 
         this._strategyTimers.forEach((timer: NodeJS.Timeout) => clearInterval(timer));
-        this._strategies.forEach(async (strategy: BaseStrategy) => {
-            if (strategy.onShutdown) {
-                await strategy.onShutdown(this);
-            }
-        });
+        await Promise.all(
+            this._strategies.map(async (strategy: BaseStrategy) => {
+                if (strategy.onShutdown) {
+                    return strategy.onShutdown(this);
+                }
+
+                return Promise.resolve();
+            })
+        );
+
+        await this._databaseService.connection.close();
 
         this.logInfo('TradeEngine shutdown');
     }
@@ -206,18 +222,21 @@ export class TradeEngine {
 
     private checkConfig(config: TradeEngineConfig): void {
         // Defaults
-        this._config.appName = this._config.appName ?? 'Breeze';
-        this._config.neverSpendAda = this._config.neverSpendAda ?? 10;
+        this._config.appName = config.appName ?? 'Breeze';
+        this._config.neverSpendAda = config.neverSpendAda ?? 10;
 
-        if (! this._config.irisWebsocketHost.startsWith('ws')) {
+        if (! config.irisWebsocketHost.startsWith('ws')) {
             throw new Error(`Invalid 'irisWebsocketHost', must start with 'ws' or 'wss'`);
+        }
+        if (! config.database?.file) {
+            throw new Error(`Database path must be set in config`);
         }
     }
 
     private async loadBacktesting(): Promise<any> {
-        if (! this._config.backtestConfig || ! this._config.backtestConfig.enabled) return;
+        if (! this._config.backtest || ! this._config.backtest.enabled) return;
 
-        this._backtestService = new ConnectorService(this._config.backtestConfig.port, this);
+        this._backtestService = new ConnectorService(this._config.backtest.port, this);
 
         return this._backtestService.boot()
             .then(() => this.logInfo('Backtesting connector booted'));

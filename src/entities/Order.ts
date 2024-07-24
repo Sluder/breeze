@@ -33,7 +33,7 @@ export class Order {
         return this;
     }
 
-    public async submit(liquidityPool: LiquidityPool, amount: bigint, inToken: Token, slot: number = 0, slippagePercent: number = 2): Promise<DexTransaction | void> {
+    public async submit(liquidityPool: LiquidityPool, amount: bigint, inToken: Token, slippagePercent: number = 2): Promise<DexTransaction | void> {
         if (! this._strategy) {
             this._engine.logError('Strategy must be set before submitting order');
             return Promise.resolve();
@@ -88,10 +88,10 @@ export class Order {
                     : new DexterAsset(inToken.policyId, inToken.nameHex, inToken.decimals ?? 0)
             );
 
-        return await this.send(request);
+        return await this.send(liquidityPool, request);
     }
 
-    private async send(request: SwapRequest | SplitSwapRequest): Promise<DexTransaction | void> {
+    private async send(liquidityPool: LiquidityPool, request: SwapRequest | SplitSwapRequest): Promise<DexTransaction | void> {
         this._engine.logInfo(`\t Building swap order ...`, this._strategy?.identifier ?? '');
 
         const swapOutTokenDecimals: number = request.swapOutToken === 'lovelace' ? 6 : request.swapOutToken.decimals;
@@ -112,8 +112,21 @@ export class Order {
             .onSubmitting(() => {
                 this._engine.logInfo(`\t Submitting order ...`, this._strategy?.identifier ?? '');
             })
-            .onSubmitted((transaction: DexTransaction) => {
+            .onSubmitted(async (transaction: DexTransaction) => {
                 this._engine.logInfo(`\t Order submitted: ${transaction.hash}`, this._strategy?.identifier ?? '');
+
+                await this._engine.database.orders().insert(
+                    liquidityPool.identifier,
+                    this._strategy?.identifier ?? '',
+                    request.swapInAmount,
+                    request.getMinimumReceive(),
+                    request.swapInToken === 'lovelace' ? '' : request.swapInToken.identifier(),
+                    request.swapOutToken === 'lovelace' ? '' : request.swapOutToken.identifier(),
+                    request.slippagePercent,
+                    totalFees,
+                    Date.now() / 1000,
+                    transaction.hash,
+                );
             })
             .onError((transaction: DexTransaction) => {
                 this._engine.logError(`\t Error submitting order: ` + transaction.error?.reasonRaw, this._strategy?.identifier ?? '');
