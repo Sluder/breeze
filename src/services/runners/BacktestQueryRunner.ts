@@ -14,9 +14,10 @@ export class BacktestQueryRunner {
         if (! this._connection) throw new Error('Database not connected');
 
         return this._connection.run(
-            'INSERT INTO backtests (strategy) VALUES (:strategy)',
+            'INSERT INTO backtests (strategy, timestamp) VALUES (:strategy, :timestamp)',
             {
                 ':strategy': strategy,
+                ':timestamp': Date.now() / 1000,
             }
         ).then((result) => result.lastID);
     }

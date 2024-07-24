@@ -53,7 +53,8 @@ export class DatabaseService {
                         up: `
                             CREATE TABLE backtests ( \
                                 id INTEGER PRIMARY KEY, \
-                                strategy TEXT NOT NULL \
+                                strategy TEXT NOT NULL
+                                timestamp INTEGER NOT NULL \
                             ); \
                             CREATE TABLE orders ( \
                                 id INTEGER PRIMARY KEY, \
@@ -63,12 +64,12 @@ export class DatabaseService {
                                 swap_in_amount INTEGER, \
                                 min_receive INTEGER, \
                                 swap_in_token TEXT NULL, \
-                                swap_out_token TEXT NULL, \
-                                price_impact_percent INTEGER, \
-                                dex_fees_paid INTEGER, \
+                                swap_out_token TEXT NULL,
+                                slippage_percent INTEGER, \
+                                dex_fees_paid INTEGER NOT NULL, \
                                 tx_hash TEXT NULL, \
                                 is_settled INTEGER DEFAULT 0, \
-                                timestamp INTEGER, \
+                                timestamp INTEGER NOT NULL, \
                                 CONSTRAINT orders_fk_backtest_id FOREIGN KEY (backtest_id) REFERENCES backtests (id) ON UPDATE CASCADE ON DELETE CASCADE \
                             ); \
                             CREATE INDEX orders_ix_backtest_id ON orders (backtest_id); \

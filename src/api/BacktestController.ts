@@ -2,7 +2,7 @@ import { BaseController } from '@app/api/BaseController';
 import express from 'express';
 import { Backtest } from '@app/entities/Backtest';
 import { BacktestOrder } from '@app/entities/BacktestOrder';
-import { Asset } from '../../../iris-sdk/src';
+import { Asset } from '@indigo-labs/iris-sdk';
 
 export class BacktestController extends BaseController {
 

@@ -28,11 +28,16 @@ export class BacktestOrder extends Order {
         return this;
     }
 
-    public async submit(liquidityPool: LiquidityPool, amount: bigint, inToken: Token, slot: number, slippagePercent: number = 2): Promise<DexTransaction | void> {
+    public forSlot(slot: number): BacktestOrder {
+        this._slot = slot;
+
+        return this;
+    }
+
+    public async submit(liquidityPool: LiquidityPool, amount: bigint, inToken: Token, slippagePercent: number = 2): Promise<DexTransaction | void> {
         this._liquidityPool = liquidityPool;
         this._amount = amount;
         this._inToken = inToken;
-        this._slot = slot;
         this._slippagePercent = slippagePercent;
 
         this._outToken = tokensMatch(this._inToken, this._liquidityPool.tokenA)

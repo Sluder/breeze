@@ -131,6 +131,8 @@ export class Backtest {
 
         this._currentSlot = this._toSlot;
 
+        this._engine.logInfo('Backtest completed', 'Backtest');
+
         return Promise.resolve();
     }
 
@@ -156,7 +158,9 @@ export class Backtest {
     private orderFromBacktest(): BacktestOrder {
         const order: BacktestOrder = new BacktestOrder(this._engine, this._mockWallet);
 
-        order.fromBacktest(this);
+        order
+            .fromBacktest(this)
+            .forSlot(this._currentSlot);
 
         this._orders.push(order);
 
