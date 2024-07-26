@@ -12,8 +12,8 @@ import {
 import { TradeEngine } from '@app/TradeEngine';
 
 export type StrategyConfig = {
-    runEveryMilliseconds: number, // Use 0 to disable timer
-    params: any,                  // Extra parameters you can provide
+    runEveryMilliseconds?: number, // Use 0 to disable timer
+    params?: any,                  // Extra parameters you can provide
 }
 
 export type BacktestConfig = {
