@@ -53,7 +53,7 @@ export class DatabaseService {
                         up: `
                             CREATE TABLE backtests ( \
                                 id INTEGER PRIMARY KEY, \
-                                strategy TEXT NOT NULL
+                                strategy TEXT NOT NULL, \
                                 timestamp INTEGER NOT NULL \
                             ); \
                             CREATE TABLE orders ( \
