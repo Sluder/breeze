@@ -3,7 +3,6 @@ import { StrategyConfig } from '@app/types';
 import { TradeEngine } from '@app/TradeEngine';
 import { Backtest } from '@app/entities/Backtest';
 import { WalletService } from '@app/services/WalletService';
-import { BaseWalletProvider } from '@indigo-labs/dexter/build/providers/wallet/base-wallet-provider';
 
 export abstract class BaseStrategy {
 
