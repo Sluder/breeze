@@ -2,6 +2,7 @@ import { WsResponse } from '@indigo-labs/iris-sdk';
 import { StrategyConfig } from '@app/types';
 import { TradeEngine } from '@app/TradeEngine';
 import { Backtest } from '@app/entities/Backtest';
+import { WalletService } from '@app/services/WalletService';
 
 export abstract class BaseStrategy {
 
@@ -10,9 +11,12 @@ export abstract class BaseStrategy {
     public config: StrategyConfig | undefined;
     public app: TradeEngine;
     public isBacktesting: boolean = true;
+    public wallet: WalletService;
 
     constructor(config?: StrategyConfig) {
         this.config = config;
+
+        this.wallet = new WalletService();
     }
 
     /**
@@ -21,7 +25,16 @@ export abstract class BaseStrategy {
     public onBoot(app: TradeEngine): Promise<any> {
         this.app = app;
 
-        return Promise.resolve();
+        return this.wallet.boot(
+            this.app,
+            this.app.config.seedPhrase,
+            this.app.config.submissionProviderConfig,
+            this.config?.walletAccountIndex,
+        );
+    }
+
+    public switchWallet(wallet: WalletService) {
+        this.wallet = wallet;
     }
 
     /**

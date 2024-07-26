@@ -22,7 +22,6 @@ export class TradeEngine {
     private readonly _dexter: Dexter;
     private readonly _logger: Logger;
     private readonly _cache: BaseCacheStorage;
-    private _walletService: WalletService;
     private _backtestService: ConnectorService;
     private _databaseService: DatabaseService;
     private _isBacktesting: boolean;
@@ -40,7 +39,6 @@ export class TradeEngine {
         this._irisApi = new IrisApiService(this._config.irisApiHost);
         this._irisWebsocket = new IrisWebsocketService(this._config.irisWebsocketHost);
         this._indicators = new IndicatorService();
-        this._walletService = new WalletService();
         this._databaseService = new DatabaseService(config.database);
         this._dexter = new Dexter({
             metadataMsgBranding: this._config.appName,
@@ -86,10 +84,6 @@ export class TradeEngine {
         return this._indicators;
     }
 
-    public get wallet(): WalletService {
-        return this._walletService;
-    }
-
     public get cache(): BaseCacheStorage {
         return this._cache;
     }
@@ -100,10 +94,6 @@ export class TradeEngine {
 
     public isBacktesting(isBacktesting: boolean): void {
         this._isBacktesting = isBacktesting;
-    }
-
-    public switchWallet(wallet: WalletService): void {
-        this._walletService = wallet;
     }
 
     public logInfo(message: string, title?: string): Logger {
@@ -177,19 +167,11 @@ export class TradeEngine {
         }
 
         return Promise.all([
-            this._walletService.boot(this, this._config.seedPhrase, this._config.submissionProviderConfig),
             this.loadBacktesting(),
         ]).then(() => {
-            this.logInfo(`Loaded wallet '${this._walletService.address}'`);
             this.logInfo(`TradeEngine booted`);
 
             this._config.seedPhrase = [];
-
-            if (this.config.canSubmitOrders && this._walletService.isWalletLoaded) {
-                this._balanceUpdateTimer = setInterval(() => {
-                    this._walletService.loadBalances();
-                }, 2_000);
-            }
         });
     }
 
@@ -217,7 +199,7 @@ export class TradeEngine {
             throw new Error('Cant submit order, engine is currently backtesting');
         }
 
-        return new Order(this, this._walletService);
+        return new Order(this);
     }
 
     private checkConfig(config: TradeEngineConfig): void {
