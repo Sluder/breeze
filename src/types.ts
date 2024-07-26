@@ -14,6 +14,7 @@ import { TradeEngine } from '@app/TradeEngine';
 export type StrategyConfig = {
     runEveryMilliseconds: number, // Use 0 to disable timer
     params: any,                  // Extra parameters you can provide
+    walletAccountIndex?: number,  // Individual account index the strategy can use
 }
 
 export type BacktestConfig = {

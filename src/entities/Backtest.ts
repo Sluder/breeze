@@ -41,7 +41,6 @@ export class Backtest {
 
         this._mockWallet.isWalletLoaded = true;
         this._engine.isBacktesting(true);
-        this._engine.switchWallet(this._mockWallet);
 
         this.loadMockBalances(config.initialBalances);
     }
@@ -100,6 +99,7 @@ export class Backtest {
         }
 
         strategy.isBacktesting = true;
+        strategy.switchWallet(this._mockWallet);
 
         await this.createId(strategy.identifier);
         if (strategy.beforeBacktest) {
@@ -156,7 +156,7 @@ export class Backtest {
      * Handler for orders made from strategy.
      */
     private orderFromBacktest(): BacktestOrder {
-        const order: BacktestOrder = new BacktestOrder(this._engine, this._mockWallet);
+        const order: BacktestOrder = new BacktestOrder(this._engine);
 
         order
             .fromBacktest(this)
