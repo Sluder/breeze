@@ -17,7 +17,7 @@ export class WalletService {
 
     private _engine: TradeEngine;
 
-    public async boot(engine: TradeEngine, seedPhrase: string[], config: BlockfrostConfig | KupmiosConfig): Promise<any> {
+    public async boot(engine: TradeEngine, seedPhrase: string[], config: BlockfrostConfig | KupmiosConfig, accountIndex: number = 0): Promise<any> {
         this._engine = engine;
 
         const lucidProvider: LucidProvider = new LucidProvider();
@@ -30,7 +30,7 @@ export class WalletService {
             return Promise.reject("Must provide seed phrase when 'canSubmitOrders' is true");
         }
 
-        return lucidProvider.loadWalletFromSeedPhrase(seedPhrase, {}, config)
+        return lucidProvider.loadWalletFromSeedPhrase(seedPhrase, { accountIndex }, config)
             .then((walletProvider: BaseWalletProvider) => {
                 engine.dexter.withWalletProvider(walletProvider);
 

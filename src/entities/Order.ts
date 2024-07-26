@@ -21,10 +21,9 @@ export class Order {
 
     protected _strategy: BaseStrategy | undefined;
 
-    constructor(engine: TradeEngine, walletService: WalletService) {
+    constructor(engine: TradeEngine) {
         this._engine = engine;
         this._engineConfig = engine.config;
-        this._walletService = walletService;
     }
 
     public fromStrategy(strategy: BaseStrategy): Order {
@@ -38,12 +37,12 @@ export class Order {
             this._engine.logError('Strategy must be set before submitting order');
             return Promise.resolve();
         }
-        if (! this._walletService.isWalletLoaded) {
+        if (! this._strategy.wallet.isWalletLoaded) {
             this._engine.logError('Wallet not loaded');
             return Promise.resolve();
         }
 
-        const walletBalance: bigint = this._engine.wallet.balanceFromAsset(inToken === 'lovelace' ? 'lovelace' : inToken.identifier()) ?? 0n;
+        const walletBalance: bigint = this._strategy.wallet.balanceFromAsset(inToken === 'lovelace' ? 'lovelace' : inToken.identifier()) ?? 0n;
         const neverSpendLovelace: bigint = BigInt((this._engineConfig.neverSpendAda ?? 0) * 10**6);
 
         // Check never spend ADA
@@ -132,7 +131,7 @@ export class Order {
                 this._engine.logError(`\t Error submitting order: ` + transaction.error?.reasonRaw, this._strategy?.identifier ?? '');
             })
             .onFinally(async (transaction: DexTransaction) => {
-                await this._engine.wallet.loadBalances();
+                await (this._strategy as BaseStrategy).wallet.loadBalances();
 
                 return Promise.resolve(transaction);
             });
