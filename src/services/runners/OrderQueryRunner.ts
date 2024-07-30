@@ -22,7 +22,7 @@ export class OrderQueryRunner {
         backtestId?: number,
     ): Promise<number | undefined> {
         return this._connection.run(
-            'INSERT INTO orders (liquidity_pool, strategy, swap_in_amount, min_receive, swap_in_token, swap_out_token, slippage_percent, dex_fees_paid, timestamp, tx_hash, backtest_id) VALUES (:liquidity_pool, :strategy, :swap_in_amount, :min_receive, :swap_in_token, :swap_out_token, :slippage_percent, :dex_fees_paid, :timestamp, :tx_hash, :backtest_id)',
+            'INSERT INTO orders (liquidity_pool, strategy, swap_in_amount, min_receive, swap_in_token, swap_out_token, slippage_percent, dex_fees_paid, timestamp, tx_hash, backtest_id, is_settled) VALUES (:liquidity_pool, :strategy, :swap_in_amount, :min_receive, :swap_in_token, :swap_out_token, :slippage_percent, :dex_fees_paid, :timestamp, :tx_hash, :backtest_id, :is_settled)',
             {
                 ':liquidity_pool': liquidityPoolIdentifier,
                 ':strategy': strategy,
@@ -35,6 +35,7 @@ export class OrderQueryRunner {
                 ':timestamp': timestamp,
                 ':tx_hash': txHash ?? 'NULL',
                 ':backtest_id': backtestId ?? 'NULL',
+                ':is_settled': backtestId ? 1 : 0,
             }
         ).then((result) => result.lastID);
     }

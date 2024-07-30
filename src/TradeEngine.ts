@@ -4,7 +4,6 @@ import { createLogger, format, Logger, transports } from 'winston';
 import { IndicatorService } from '@app/services/IndicatorService';
 import { BlockfrostProvider, Dexter, KupoProvider } from '@indigo-labs/dexter';
 import { TradeEngineConfig } from '@app/types';
-import { WalletService } from '@app/services/WalletService';
 import { BaseCacheStorage } from '@app/storage/BaseCacheStorage';
 import { NodeCacheStorage } from '@app/storage/NodeCacheStorage';
 import { Order } from '@app/entities/Order';
@@ -109,7 +108,28 @@ export class TradeEngine {
     }
 
     public async boot(): Promise<void> {
+        if (this.config.canSubmitOrders) {
+            if ('kupoUrl' in this._config.submissionProviderConfig) {
+                this._dexter.withDataProvider(
+                    new KupoProvider({
+                        url: this._config.submissionProviderConfig.kupoUrl,
+                    })
+                );
+            } else if ('projectId' in this._config.submissionProviderConfig) {
+                this._dexter.withDataProvider(
+                    new BlockfrostProvider({
+                        url: this._config.submissionProviderConfig.url,
+                        projectId: this._config.submissionProviderConfig.projectId,
+                    })
+                );
+            } else {
+                return Promise.reject("Unknown 'submissionProviderConfig' provided");
+            }
+        }
+
         for (const strategy of this._strategies) {
+            this.logInfo(`Booting strategy '${strategy.identifier}' ...`);
+
             if (strategy.onWebsocketMessage) {
                 this._irisWebsocket.addListener(strategy.onWebsocketMessage.bind(strategy));
             }
@@ -133,7 +153,9 @@ export class TradeEngine {
                 this._strategyTimers.push(timer);
             }
 
-            this.logInfo(`Strategy '${strategy.identifier}' booted`);
+            if (strategy.wallet && strategy.wallet.isWalletLoaded) {
+                this.logInfo(`\t Wallet : '${strategy.wallet.address}'`);
+            }
         }
 
         this.logInfo(`Booted ${this._strategies.length} strategies`);
@@ -146,25 +168,6 @@ export class TradeEngine {
 
         await this._cache.boot();
         this.logInfo(`Booted cache`);
-
-        if (this.config.canSubmitOrders) {
-            if ('kupoUrl' in this._config.submissionProviderConfig) {
-                this._dexter.withDataProvider(
-                    new KupoProvider({
-                        url: this._config.submissionProviderConfig.kupoUrl,
-                    })
-                );
-            } else if ('projectId' in this._config.submissionProviderConfig) {
-                this._dexter.withDataProvider(
-                    new BlockfrostProvider({
-                        url: this._config.submissionProviderConfig.url,
-                        projectId: this._config.submissionProviderConfig.projectId,
-                    })
-                );
-            } else {
-                return Promise.reject("Unknown 'submissionProviderConfig' provided");
-            }
-        }
 
         return Promise.all([
             this.loadBacktesting(),

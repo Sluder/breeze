@@ -37,16 +37,20 @@ export function toDexterToken(token: Token): DexterToken {
 }
 
 export function toDexterLiquidityPool(liquidityPool: LiquidityPool): DexterLiquidityPool {
-    return new DexterLiquidityPool(
+    const pool: DexterLiquidityPool = new DexterLiquidityPool(
         liquidityPool.dex,
         toDexterToken(liquidityPool.tokenA),
         toDexterToken(liquidityPool.tokenB),
-        liquidityPool.state?.reserveA ?? 0n,
-        liquidityPool.state?.reserveB ?? 0n,
+        BigInt(liquidityPool.state?.reserveA ?? 0),
+        BigInt(liquidityPool.state?.reserveB ?? 0),
         liquidityPool.address,
         liquidityPool.orderAddress,
         liquidityPool.orderAddress,
     );
+
+    pool.poolFeePercent = liquidityPool.state?.feePercent ?? 0;
+
+    return pool;
 }
 
 export function tokenToJson(token: Token): any {

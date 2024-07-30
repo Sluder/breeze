@@ -10,16 +10,15 @@ import {
 } from '@indigo-labs/dexter';
 import { TradeEngine } from '@app/TradeEngine';
 import { TradeEngineConfig } from '@app/types';
-import { WalletService } from '@app/services/WalletService';
 import { tokensMatch } from '@app/utils';
 
 export class Order {
 
     protected _engine: TradeEngine;
     protected _engineConfig: TradeEngineConfig;
-    protected _walletService: WalletService;
 
     protected _strategy: BaseStrategy | undefined;
+    protected _timestamp: number | undefined;
 
     constructor(engine: TradeEngine) {
         this._engine = engine;
@@ -28,6 +27,12 @@ export class Order {
 
     public fromStrategy(strategy: BaseStrategy): Order {
         this._strategy = strategy;
+
+        return this;
+    }
+
+    public forTimestamp(timestamp: number): Order {
+        this._timestamp = timestamp;
 
         return this;
     }
@@ -123,7 +128,7 @@ export class Order {
                     request.swapOutToken === 'lovelace' ? '' : request.swapOutToken.identifier(),
                     request.slippagePercent,
                     totalFees,
-                    Date.now() / 1000,
+                    this._timestamp ?? (Date.now() / 1000),
                     transaction.hash,
                 );
             })

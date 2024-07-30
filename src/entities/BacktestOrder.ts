@@ -19,17 +19,10 @@ export class BacktestOrder extends Order {
     private _amount: bigint;
     private _inToken: Token;
     private _outToken: Token;
-    private _slot: number;
     private _slippagePercent: number;
 
     public fromBacktest(backtest: Backtest): BacktestOrder {
         this._backtest = backtest;
-
-        return this;
-    }
-
-    public forSlot(slot: number): BacktestOrder {
-        this._slot = slot;
 
         return this;
     }
@@ -65,7 +58,7 @@ export class BacktestOrder extends Order {
                 return fee.isReturned ? total : total + fee.value;
             }, 0n)),
             liquidityPool: liquidityPoolToJson(this._liquidityPool),
-            placedAt: slotToUnix(this._slot),
+            placedAt: this._timestamp,
         };
     }
 
@@ -74,10 +67,19 @@ export class BacktestOrder extends Order {
             .forLiquidityPool(toDexterLiquidityPool(this._liquidityPool))
             .withSlippagePercent(this._slippagePercent)
             .withSwapInToken(toDexterToken(this._inToken))
-            .withSwapInAmount(this._amount);
+            .withSwapInAmount(BigInt(this._amount));
     }
 
     private updateWalletBalance(): void {
+        if (! this._strategy) {
+            this._engine.logError('Strategy must be set before submitting order');
+            return;
+        }
+        if (! this._strategy.wallet.isWalletLoaded) {
+            this._engine.logError('Wallet not loaded');
+            return;
+        }
+
         const swapRequest: SwapRequest = this.toSwapRequest();
 
         const deductFromBalance: string = this._inToken === 'lovelace'
@@ -87,14 +89,14 @@ export class BacktestOrder extends Order {
             ? 'lovelace'
             : this._outToken.identifier();
 
-        this._walletService.balances.set(
+        this._strategy.wallet.balances.set(
             deductFromBalance,
-            (this._walletService.balances.get(deductFromBalance) ?? 0n) - this._amount,
+            (this._strategy.wallet.balances.get(deductFromBalance) ?? 0n) - this._amount,
         );
 
-        this._walletService.balances.set(
+        this._strategy.wallet.balances.set(
             addFromBalance,
-            swapRequest.getEstimatedReceive() + (this._walletService.balances.get(addFromBalance) ?? 0n),
+            swapRequest.getEstimatedReceive() + (this._strategy.wallet.balances.get(addFromBalance) ?? 0n),
         );
     }
 
@@ -115,7 +117,7 @@ export class BacktestOrder extends Order {
             swapRequest.swapOutToken === 'lovelace' ? '' : swapRequest.swapOutToken.identifier(),
             swapRequest.slippagePercent,
             totalFees,
-            slotToUnix(this._slot),
+            this._timestamp ?? 0,
             '',
             this._backtest.id,
         );

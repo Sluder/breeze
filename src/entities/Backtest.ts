@@ -4,7 +4,7 @@ import { TradeEngine } from '@app/TradeEngine';
 import { BaseStrategy } from '@app/BaseStrategy';
 import { WalletService } from '@app/services/WalletService';
 import { BacktestOrder } from '@app/entities/BacktestOrder';
-import { Asset } from '@indigo-labs/iris-sdk';
+import { Asset, TickInterval } from '@indigo-labs/iris-sdk';
 
 const TIMESTAMP_GAP_SECONDS: number = 60 * 60 * 24;
 
@@ -34,11 +34,11 @@ export class Backtest {
         this._filterAssets = config.filteredAssets ?? [];
         this._engine = config.engine;
 
-        this._mockWallet = new WalletService();
         this._currentSlot = this._fromSlot;
         this._entities = [];
         this._orders = [];
 
+        this._mockWallet = new WalletService();
         this._mockWallet.isWalletLoaded = true;
         this._engine.isBacktesting(true);
 
@@ -158,9 +158,7 @@ export class Backtest {
     private orderFromBacktest(): BacktestOrder {
         const order: BacktestOrder = new BacktestOrder(this._engine);
 
-        order
-            .fromBacktest(this)
-            .forSlot(this._currentSlot);
+        order.fromBacktest(this);
 
         this._orders.push(order);
 
@@ -172,10 +170,11 @@ export class Backtest {
      */
     private async loadEntities(fromTimestamp: number, toTimestamp: number) {
         return Promise.all([
-            this._engine.api.liquidityPools().statesHistoric(fromTimestamp, toTimestamp, this._filterAssets),
-            this._engine.api.liquidityPools().swapsHistoric(fromTimestamp, toTimestamp, this._filterAssets),
-            this._engine.api.liquidityPools().depositsHistoric(fromTimestamp, toTimestamp, this._filterAssets),
-            this._engine.api.liquidityPools().withdrawsHistoric(fromTimestamp, toTimestamp, this._filterAssets),
+            // this._engine.api.liquidityPools().statesHistoric(fromTimestamp, toTimestamp, this._filterAssets),
+            // this._engine.api.liquidityPools().swapsHistoric(fromTimestamp, toTimestamp, this._filterAssets),
+            // this._engine.api.liquidityPools().depositsHistoric(fromTimestamp, toTimestamp, this._filterAssets),
+            // this._engine.api.liquidityPools().withdrawsHistoric(fromTimestamp, toTimestamp, this._filterAssets),
+            this._engine.api.assets().ticks(this._filterAssets, TickInterval.Minute, 'ASC', fromTimestamp, toTimestamp),
         ]).then((responses) => {
             this._entities = responses
                 .reduce((entities: BacktestableEntity[], response: any) => {
