@@ -131,6 +131,8 @@ export class Order {
                     this._timestamp ?? (Date.now() / 1000),
                     transaction.hash,
                 );
+
+                await this._strategy?.wallet.loadBalances();
             })
             .onError((transaction: DexTransaction) => {
                 this._engine.logError(`\t Error submitting order: ` + transaction.error?.reasonRaw, this._strategy?.identifier ?? '');

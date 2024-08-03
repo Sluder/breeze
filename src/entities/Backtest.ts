@@ -186,12 +186,19 @@ export class Backtest {
                     return entities;
                 }, [])
                 .sort((a: BacktestableEntity, b: BacktestableEntity) => {
-                    const aSlot: number = 'slot' in a
+                    let aSlot: number = 'slot' in a
                         ? a.slot
                         : ('createdSlot' in a ? a.createdSlot : 0);
-                    const bSlot: number = 'slot' in b
+                    let bSlot: number = 'slot' in b
                         ? b.slot
                         : ('createdSlot' in b ? b.createdSlot : 0);
+
+                    if ('timestamp' in a) {
+                        aSlot = unixToSlot(a.timestamp as number);
+                    }
+                    if ('timestamp' in b) {
+                        bSlot = unixToSlot(b.timestamp as number);
+                    }
 
                     return aSlot - bSlot;
                 });
@@ -224,7 +231,7 @@ export class Backtest {
     }
 
     private async createId(strategy: string): Promise<void> {
-        return this._engine.database.backtests().insert(strategy)
+        return this._engine.database.backtest().insert(strategy)
             .then((id: number | undefined) => {
                 if (! id) throw new Error('Failed to create backtest in database');
 

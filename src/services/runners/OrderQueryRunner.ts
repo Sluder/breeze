@@ -40,4 +40,13 @@ export class OrderQueryRunner {
         ).then((result) => result.lastID);
     }
 
+    public async updateToSettled(txHash: string) {
+        return this._connection.run(
+            `UPDATE orders SET is_settled = 1 WHERE tx_hash = :tx_hash`,
+            {
+                ':tx_hash': txHash,
+            }
+        );
+    }
+
 }

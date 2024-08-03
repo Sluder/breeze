@@ -34,7 +34,7 @@ export class DatabaseService {
         return new OrderQueryRunner(this._connection);
     }
 
-    public backtests(): BacktestQueryRunner {
+    public backtest(): BacktestQueryRunner {
         if (! this._connection) throw new Error('Database not connected');
 
         return new BacktestQueryRunner(this._connection);

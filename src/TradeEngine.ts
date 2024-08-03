@@ -9,6 +9,7 @@ import { NodeCacheStorage } from '@app/storage/NodeCacheStorage';
 import { Order } from '@app/entities/Order';
 import { ConnectorService } from '@app/services/ConnectorService';
 import { DatabaseService } from '@app/services/DatabaseService';
+import { OrderService } from '@app/services/OrderService';
 
 export class TradeEngine {
 
@@ -23,6 +24,7 @@ export class TradeEngine {
     private readonly _cache: BaseCacheStorage;
     private _backtestService: ConnectorService;
     private _databaseService: DatabaseService;
+    private _orderService: OrderService;
     private _isBacktesting: boolean;
     private _balanceUpdateTimer: NodeJS.Timeout;
 
@@ -39,6 +41,7 @@ export class TradeEngine {
         this._irisWebsocket = new IrisWebsocketService(this._config.irisWebsocketHost);
         this._indicators = new IndicatorService();
         this._databaseService = new DatabaseService(config.database);
+        this._orderService = new OrderService(this._databaseService);
         this._dexter = new Dexter({
             metadataMsgBranding: this._config.appName,
             shouldSubmitOrders: config.canSubmitOrders,
@@ -109,6 +112,12 @@ export class TradeEngine {
 
     public async boot(): Promise<void> {
         if (this.config.canSubmitOrders) {
+            this._irisWebsocket.addListener(() => {
+                if (this._isBacktesting) return;
+
+                return this._orderService.onWebsocketMessage;
+            });
+
             if ('kupoUrl' in this._config.submissionProviderConfig) {
                 this._dexter.withDataProvider(
                     new KupoProvider({
