@@ -20,13 +20,15 @@
   "dependencies": {
     "@indigo-labs/dexter": "^5.1.0",
     "@indigo-labs/iris-sdk": "file:../iris-sdk",
+    "@slack/web-api": "^7.3.2",
     "@types/express": "^4.17.21",
     "axios": "^0.26.1",
     "cors": "^2.8.5",
     "express": "^4.19.2",
     "node-cache": "^5.1.2",
     "sqlite": "^5.1.1",
-    "sqlite3": "^5.1.7"
+    "sqlite3": "^5.1.7",
+    "twilio": "^5.2.2"
   },
   "devDependencies": {
     "@babel/core": "^7.21.4",

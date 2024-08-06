@@ -10,6 +10,7 @@ import { Order } from '@app/entities/Order';
 import { ConnectorService } from '@app/services/ConnectorService';
 import { DatabaseService } from '@app/services/DatabaseService';
 import { OrderService } from '@app/services/OrderService';
+import { NotificationService } from '@app/services/NotificationService';
 
 export class TradeEngine {
 
@@ -25,6 +26,7 @@ export class TradeEngine {
     private _backtestService: ConnectorService;
     private _databaseService: DatabaseService;
     private _orderService: OrderService;
+    private _notificationService: NotificationService;
     private _isBacktesting: boolean;
     private _balanceUpdateTimer: NodeJS.Timeout;
 
@@ -42,6 +44,7 @@ export class TradeEngine {
         this._indicators = new IndicatorService();
         this._databaseService = new DatabaseService(config.database);
         this._orderService = new OrderService(this._databaseService);
+        this._notificationService = new NotificationService(config.notifications?.notifiers ?? []);
         this._dexter = new Dexter({
             metadataMsgBranding: this._config.appName,
             shouldSubmitOrders: config.canSubmitOrders,
@@ -88,6 +91,10 @@ export class TradeEngine {
 
     public get cache(): BaseCacheStorage {
         return this._cache;
+    }
+
+    public get notifications(): NotificationService {
+        return this._notificationService;
     }
 
     public get strategies(): BaseStrategy[] {

@@ -1,5 +1,5 @@
 import { BaseStrategy } from '@app/BaseStrategy';
-import { LiquidityPool, Token, tokenDecimals } from '@indigo-labs/iris-sdk';
+import { Asset, LiquidityPool, Token, tokenDecimals } from '@indigo-labs/iris-sdk';
 import {
     Asset as DexterAsset,
     DexTransaction,
@@ -133,8 +133,17 @@ export class Order {
                 );
 
                 await this._strategy?.wallet.loadBalances();
+                await this._engine?.notifications.notify(
+                    liquidityPool,
+                    this._strategy?.identifier ?? '',
+                    request.swapInToken === 'lovelace' ? 'lovelace' : new Asset(request.swapInToken.policyId, request.swapInToken.nameHex, request.swapInToken.decimals),
+                    request.swapOutToken === 'lovelace' ? 'lovelace' : new Asset(request.swapOutToken.policyId, request.swapOutToken.nameHex, request.swapOutToken.decimals),
+                    request.swapInAmount,
+                    request.getEstimatedReceive(),
+                );
             })
             .onError((transaction: DexTransaction) => {
+                console.error(transaction, transaction.error)
                 this._engine.logError(`\t Error submitting order: ` + transaction.error?.reasonRaw, this._strategy?.identifier ?? '');
             })
             .onFinally(async (transaction: DexTransaction) => {

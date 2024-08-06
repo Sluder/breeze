@@ -10,6 +10,7 @@ import {
     WithdrawOrder
 } from '@indigo-labs/iris-sdk';
 import { TradeEngine } from '@app/TradeEngine';
+import { BaseNotifier } from '@app/notifiers/BaseNotifier';
 
 export type StrategyConfig = {
     runEveryMilliseconds?: number, // Use 0 to disable timer
@@ -26,6 +27,10 @@ export type DatabaseConfig = {
     file: string,
 }
 
+export type NotificationConfig = {
+    notifiers: BaseNotifier[],
+}
+
 export type TradeEngineConfig = {
     appName?: string,
     irisWebsocketHost: string,
@@ -35,9 +40,10 @@ export type TradeEngineConfig = {
     neverSpendAda?: number,
     submissionProviderConfig: BlockfrostConfig | KupmiosConfig,
     logDirectory: string,
+    database: DatabaseConfig,
     cacheStorage?: BaseCacheStorage,
     backtest?: BacktestConfig,
-    database: DatabaseConfig,
+    notifications?: NotificationConfig,
 }
 
 export type BacktestRunConfig = {

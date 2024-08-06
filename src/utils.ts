@@ -1,4 +1,4 @@
-import { Asset, LiquidityPool, Token } from '@indigo-labs/iris-sdk';
+import { Asset, LiquidityPool, Token, tokenDecimals } from '@indigo-labs/iris-sdk';
 import { Asset as DexterAsset, Token as DexterToken, LiquidityPool as DexterLiquidityPool } from '@indigo-labs/dexter';
 
 export function tokensMatch(tokenA: Token, tokenB: Token): boolean {
@@ -16,6 +16,22 @@ export function tokenFromIdentifier(identifier: string, decimals: number = 0) {
         identifier.slice(56),
         decimals,
     )
+}
+
+export function tokenTicker(token: Token): string {
+    return token === 'lovelace'
+        ? 'ADA'
+        : token.readableTicker;
+}
+
+export function formatWithDecimals(amount: bigint, token: Token): number {
+    return tokenDecimals(token) > 0
+        ? Number(amount) / 10**tokenDecimals(token)
+        : Number(amount);
+}
+
+export function formatDigits(value: any, digits: number = 6): number {
+    return Math.round(value * 10 ** digits) / 10 ** digits;
 }
 
 export function unixToSlot(timestamp: number): number {
