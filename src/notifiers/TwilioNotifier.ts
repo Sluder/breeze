@@ -1,6 +1,6 @@
 import { BaseNotifier } from '@app/notifiers/BaseNotifier';
 import { default as Twilio } from 'twilio';
-import { LiquidityPool, Token } from '../../../iris-sdk/src';
+import { LiquidityPool, Token } from '@indigo-labs/iris-sdk';
 
 export class TwilioNotifier extends BaseNotifier {
 
