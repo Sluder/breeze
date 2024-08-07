@@ -19,6 +19,7 @@ export class Order {
 
     protected _strategy: BaseStrategy | undefined;
     protected _timestamp: number | undefined;
+    protected _metadata: string = '';
 
     constructor(engine: TradeEngine) {
         this._engine = engine;
@@ -33,6 +34,12 @@ export class Order {
 
     public forTimestamp(timestamp: number): Order {
         this._timestamp = timestamp;
+
+        return this;
+    }
+
+    public withMetadata(metadata: string): Order {
+        this._metadata = metadata;
 
         return this;
     }
@@ -86,6 +93,7 @@ export class Order {
             .forLiquidityPool(this.irisToDexterPool(liquidityPool))
             .withSlippagePercent(slippagePercent)
             .withSwapInAmount(amount)
+            .withMetadata(this._metadata)
             .withSwapInToken(
                 inToken === 'lovelace'
                     ? 'lovelace'
