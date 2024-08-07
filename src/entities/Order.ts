@@ -154,7 +154,7 @@ export class Order {
     }
 
     private irisToDexterPool(liquidityPool: LiquidityPool): DexterPool {
-        return new DexterPool(
+        const pool: DexterPool = new DexterPool(
             liquidityPool.dex,
             liquidityPool.tokenA === 'lovelace'
                 ? 'lovelace'
@@ -165,6 +165,10 @@ export class Order {
             liquidityPool.address,
             liquidityPool.orderAddress,
         );
+
+        pool.poolFeePercent = liquidityPool.state?.feePercent ?? 0;
+
+        return pool;
     }
 
 }
