@@ -160,8 +160,8 @@ export class Order {
                 ? 'lovelace'
                 : new DexterAsset(liquidityPool.tokenA.policyId, liquidityPool.tokenA.nameHex, liquidityPool.tokenA.decimals ?? 0),
             new DexterAsset(liquidityPool.tokenB.policyId, liquidityPool.tokenB.nameHex, liquidityPool.tokenB.decimals ?? 0),
-            liquidityPool.state?.reserveA ?? 0n,
-            liquidityPool.state?.reserveB ?? 0n,
+            BigInt(liquidityPool.state?.reserveA ?? 0),
+            BigInt(liquidityPool.state?.reserveB ?? 0),
             liquidityPool.address,
             liquidityPool.orderAddress,
         );
