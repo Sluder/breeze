@@ -49,4 +49,13 @@ export class OrderQueryRunner {
         );
     }
 
+    public async lastOrderFromStrategy(strategy: string) {
+        return this._connection.get(
+            `SELECT * from orders WHERE strategy = :strategy ORDER BY timestamp DESC LIMIT 1`,
+            {
+                ':strategy': strategy,
+            }
+        );
+    }
+
 }
