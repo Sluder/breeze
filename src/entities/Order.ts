@@ -175,6 +175,7 @@ export class Order {
         );
 
         pool.poolFeePercent = liquidityPool.state?.feePercent ?? 0;
+        pool.identifier = liquidityPool.identifier;
 
         return pool;
     }
