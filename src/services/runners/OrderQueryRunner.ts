@@ -1,4 +1,5 @@
 import { Database } from 'sqlite';
+import { Token } from '@indigo-labs/iris-sdk';
 
 export class OrderQueryRunner {
 
@@ -55,6 +56,21 @@ export class OrderQueryRunner {
             {
                 ':strategy': strategy,
             }
+        );
+    }
+
+    public async unsettledOrdersForPair(strategy: string, tokenA: Token, tokenB: Token) {
+        return this._connection.all(
+            `SELECT * from orders WHERE strategy = :strategy AND swap_in_token ${tokenA === 'lovelace' ? 'IS NULL' : '= ' + `\'${tokenA.identifier()}\'`} AND swap_out_token ${tokenB === 'lovelace' ? 'IS NULL' : '= ' + `\'${tokenB.identifier()}\'`} AND is_settled = 0`,
+            {
+                ':strategy': strategy,
+            }
+        );
+    }
+
+    public async unsettledOrders() {
+        return this._connection.all(
+            `SELECT * from orders WHERE is_settled = 0 AND (backtest_id IS NULL OR backtest_id = 'NULL' OR backtest_id = '')`,
         );
     }
 

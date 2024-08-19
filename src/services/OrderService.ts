@@ -1,18 +1,28 @@
-import { SwapOrder, WsResponse } from '@indigo-labs/iris-sdk';
-import { DatabaseService } from '@app/services/DatabaseService';
+import { OperationStatus, SwapOrder, WsResponse } from '@indigo-labs/iris-sdk';
+import { DexOperationStatus } from '@app/types';
+import { TradeEngine } from '@app/TradeEngine';
+import { BaseStrategy } from '@app/BaseStrategy';
 
 export class OrderService {
 
-    private _databaseService: DatabaseService;
+    private _app: TradeEngine;
 
-    constructor(databaseService: DatabaseService) {
-        this._databaseService = databaseService;
+    constructor(app: TradeEngine) {
+        this._app = app;
     }
 
     public onWebsocketMessage(message: WsResponse): Promise<any> {
-        if (! (message instanceof SwapOrder)) return Promise.resolve();
+        if (! (message instanceof OperationStatus)) return Promise.resolve();
 
-        return this._databaseService.orders().updateToSettled(message.txHash);
+        const hasReceivedFunds: boolean = [DexOperationStatus.Complete, DexOperationStatus.Cancelled].includes(message.status);
+
+        if (! hasReceivedFunds || ! message.entity || ! (message.entity instanceof SwapOrder)) return Promise.resolve();
+
+        return this._app.database.orders()
+            .updateToSettled(message.entity.txHash)
+            .then(() => {
+                this._app.strategies.forEach((strategy: BaseStrategy) => strategy.wallet.loadBalances());
+            });
     }
 
 }

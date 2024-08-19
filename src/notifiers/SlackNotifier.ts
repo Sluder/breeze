@@ -19,7 +19,10 @@ export class SlackNotifier extends BaseNotifier {
         const inAmount: number = formatWithDecimals(amount, inToken);
         const outAmount: number = formatWithDecimals(estReceive, outToken);
         const side: string = tokensMatch(liquidityPool.tokenA, inToken) ? 'BUY' : 'SELL';
-        const price: number = formatDigits(inAmount / outAmount, tokenDecimals(outToken));
+        const price: number = formatDigits(
+            tokensMatch(liquidityPool.tokenA, inToken) ? (inAmount / outAmount) : (outAmount / inAmount),
+            tokenDecimals(outToken) ?? 10
+        );
 
         return this._client
             .chat

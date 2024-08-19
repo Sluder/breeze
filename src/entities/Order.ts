@@ -10,7 +10,7 @@ import {
 } from '@indigo-labs/dexter';
 import { TradeEngine } from '@app/TradeEngine';
 import { TradeEngineConfig } from '@app/types';
-import { tokensMatch } from '@app/utils';
+import { toDexterLiquidityPool, tokensMatch } from '@app/utils';
 
 export class Order {
 
@@ -90,7 +90,7 @@ export class Order {
 
         const request: SwapRequest = this._engine.dexter
             .newSwapRequest()
-            .forLiquidityPool(this.irisToDexterPool(liquidityPool))
+            .forLiquidityPool(toDexterLiquidityPool(liquidityPool))
             .withSlippagePercent(slippagePercent)
             .withSwapInAmount(amount)
             .withMetadata(this._metadata)
@@ -136,7 +136,7 @@ export class Order {
                     request.swapOutToken === 'lovelace' ? '' : request.swapOutToken.identifier(),
                     request.slippagePercent,
                     totalFees,
-                    this._timestamp ?? (Date.now() / 1000),
+                    Math.floor(this._timestamp ?? (Date.now() / 1000)),
                     transaction.hash,
                 );
 
@@ -151,7 +151,6 @@ export class Order {
                 );
             })
             .onError((transaction: DexTransaction) => {
-                console.error(transaction, transaction.error)
                 this._engine.logError(`\t Error submitting order: ` + transaction.error?.reasonRaw, this._strategy?.identifier ?? '');
             })
             .onFinally(async (transaction: DexTransaction) => {
@@ -159,25 +158,6 @@ export class Order {
 
                 return Promise.resolve(transaction);
             });
-    }
-
-    private irisToDexterPool(liquidityPool: LiquidityPool): DexterPool {
-        const pool: DexterPool = new DexterPool(
-            liquidityPool.dex,
-            liquidityPool.tokenA === 'lovelace'
-                ? 'lovelace'
-                : new DexterAsset(liquidityPool.tokenA.policyId, liquidityPool.tokenA.nameHex, liquidityPool.tokenA.decimals ?? 0),
-            new DexterAsset(liquidityPool.tokenB.policyId, liquidityPool.tokenB.nameHex, liquidityPool.tokenB.decimals ?? 0),
-            BigInt(liquidityPool.state?.reserveA ?? 0),
-            BigInt(liquidityPool.state?.reserveB ?? 0),
-            liquidityPool.address,
-            liquidityPool.orderAddress,
-        );
-
-        pool.poolFeePercent = liquidityPool.state?.feePercent ?? 0;
-        pool.identifier = liquidityPool.identifier;
-
-        return pool;
     }
 
 }

@@ -11,11 +11,14 @@ import { ConnectorService } from '@app/services/ConnectorService';
 import { DatabaseService } from '@app/services/DatabaseService';
 import { OrderService } from '@app/services/OrderService';
 import { NotificationService } from '@app/services/NotificationService';
+import { BaseJob } from '@app/jobs/BaseJob';
+import { AutoCancelJob } from '@app/jobs/AutoCancelJob';
 
 export class TradeEngine {
 
     private readonly _config: TradeEngineConfig;
     private readonly _strategies: BaseStrategy[];
+    private readonly _jobs: BaseJob[];
 
     private readonly _irisApi: IrisApiService;
     private readonly _irisWebsocket: IrisWebsocketService;
@@ -23,18 +26,27 @@ export class TradeEngine {
     private readonly _dexter: Dexter;
     private readonly _logger: Logger;
     private readonly _cache: BaseCacheStorage;
+    private readonly _databaseService: DatabaseService;
+    private readonly _orderService: OrderService;
+    private readonly _notificationService: NotificationService;
+
     private _backtestService: ConnectorService;
-    private _databaseService: DatabaseService;
-    private _orderService: OrderService;
-    private _notificationService: NotificationService;
     private _isBacktesting: boolean;
     private _balanceUpdateTimer: NodeJS.Timeout;
 
     private _strategyTimers: NodeJS.Timeout[] = [];
+    private _jobTimer: NodeJS.Timeout;
 
-    constructor(strategies: BaseStrategy[], config: TradeEngineConfig) {
+    constructor(
+        strategies: BaseStrategy[],
+        config: TradeEngineConfig,
+        jobs: BaseJob[] = [],
+    ) {
         this._strategies = strategies;
         this._config = config;
+        this._jobs = jobs.concat([
+            new AutoCancelJob(this),
+        ]);
 
         this.checkConfig(config);
 
@@ -43,11 +55,13 @@ export class TradeEngine {
         this._irisWebsocket = new IrisWebsocketService(this._config.irisWebsocketHost);
         this._indicators = new IndicatorService();
         this._databaseService = new DatabaseService(config.database);
-        this._orderService = new OrderService(this._databaseService);
+        this._orderService = new OrderService(this);
         this._notificationService = new NotificationService(config.notifications?.notifiers ?? []);
         this._dexter = new Dexter({
             metadataMsgBranding: this._config.appName,
             shouldSubmitOrders: config.canSubmitOrders,
+        }, {
+            timeout: 30_000,
         });
         this._logger = createLogger({
             transports: [
@@ -119,16 +133,14 @@ export class TradeEngine {
 
     public async boot(): Promise<void> {
         if (this.config.canSubmitOrders) {
-            this._irisWebsocket.addListener(() => {
-                if (this._isBacktesting) return;
-
-                return this._orderService.onWebsocketMessage;
-            });
+            this._irisWebsocket.addListener(this._orderService.onWebsocketMessage.bind(this._orderService));
 
             if ('kupoUrl' in this._config.submissionProviderConfig) {
                 this._dexter.withDataProvider(
                     new KupoProvider({
                         url: this._config.submissionProviderConfig.kupoUrl,
+                    }, {
+                        timeout: 30_000,
                     })
                 );
             } else if ('projectId' in this._config.submissionProviderConfig) {
@@ -136,6 +148,8 @@ export class TradeEngine {
                     new BlockfrostProvider({
                         url: this._config.submissionProviderConfig.url,
                         projectId: this._config.submissionProviderConfig.projectId,
+                    }, {
+                        timeout: 30_000,
                     })
                 );
             } else {
@@ -185,12 +199,15 @@ export class TradeEngine {
         await this._cache.boot();
         this.logInfo(`Booted cache`);
 
+        this.setUpJobs();
+        this.logInfo(`Booted cron jobs`);
+
         return Promise.all([
             this.loadBacktesting(),
         ]).then(() => {
             this.logInfo(`TradeEngine booted`);
 
-            this._config.seedPhrase = [];
+            // this._config.seedPhrase = [];
         });
     }
 
@@ -219,6 +236,16 @@ export class TradeEngine {
         }
 
         return new Order(this);
+    }
+
+    private setUpJobs() {
+        this._jobTimer = setInterval(async () => {
+            return this._jobs.map((job: BaseJob) => {
+                if (! job.shouldRun()) return Promise.resolve();
+
+                return job.run();
+            })
+        }, 60 * 1000);
     }
 
     private checkConfig(config: TradeEngineConfig): void {

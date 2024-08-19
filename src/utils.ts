@@ -1,5 +1,6 @@
 import { Asset, LiquidityPool, Token, tokenDecimals } from '@indigo-labs/iris-sdk';
 import { Asset as DexterAsset, Token as DexterToken, LiquidityPool as DexterLiquidityPool } from '@indigo-labs/dexter';
+import { SundaeSwapV1 } from '@indigo-labs/dexter/build/dex/sundaeswap-v1';
 
 export function tokensMatch(tokenA: Token, tokenB: Token): boolean {
     const tokenAId: string = tokenA === 'lovelace' ? 'lovelace' : tokenA.identifier();
@@ -53,8 +54,14 @@ export function toDexterToken(token: Token): DexterToken {
 }
 
 export function toDexterLiquidityPool(liquidityPool: LiquidityPool): DexterLiquidityPool {
+    let dex: string = liquidityPool.dex;
+
+    if (dex === 'SundaeSwap') {
+        dex = SundaeSwapV1.identifier;
+    }
+
     const pool: DexterLiquidityPool = new DexterLiquidityPool(
-        liquidityPool.dex,
+        dex,
         toDexterToken(liquidityPool.tokenA),
         toDexterToken(liquidityPool.tokenB),
         BigInt(liquidityPool.state?.reserveA ?? 0),
@@ -65,6 +72,7 @@ export function toDexterLiquidityPool(liquidityPool: LiquidityPool): DexterLiqui
     );
 
     pool.poolFeePercent = liquidityPool.state?.feePercent ?? 0;
+    pool.identifier = liquidityPool.identifier;
 
     return pool;
 }

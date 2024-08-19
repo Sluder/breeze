@@ -12,10 +12,18 @@ import {
 import { TradeEngine } from '@app/TradeEngine';
 import { BaseNotifier } from '@app/notifiers/BaseNotifier';
 
+export enum DexOperationStatus {
+    Pending = 0,
+    OnChain = 1,
+    Complete = 2,
+    Cancelled = 3,
+}
+
 export type StrategyConfig = {
-    runEveryMilliseconds?: number, // Use 0 to disable timer
-    params?: any,                  // Extra parameters you can provide
-    walletAccountIndex?: number,  // Individual account index the strategy can use
+    runEveryMilliseconds?: number,   // Use 0 to disable timer
+    params?: any,                    // Extra parameters you can provide
+    walletAccountIndex?: number,     // Individual account index the strategy can use
+    autoCancelAfterSeconds?: number, //
 }
 
 export type BacktestConfig = {
