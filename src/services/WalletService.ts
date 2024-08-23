@@ -7,6 +7,7 @@ import {
     UTxO
 } from '@indigo-labs/dexter';
 import { TradeEngine } from '@app/TradeEngine';
+import { Blockfrost, Kupmios, Lucid } from 'lucid-cardano';
 
 export class WalletService {
 
@@ -16,10 +17,18 @@ export class WalletService {
     public address: string = '';
 
     private _engine: TradeEngine;
+    private _lucid: Lucid;
 
     public async boot(engine: TradeEngine, seedPhrase: string[], config: BlockfrostConfig | KupmiosConfig, accountIndex: number = 0): Promise<any> {
         this._engine = engine;
 
+        // Load lucid instance for breeze.
+        this._lucid = await Lucid.new(
+            'projectId' in config ? new Blockfrost(config.url, config.projectId) : new Kupmios(config.kupoUrl, config.ogmiosUrl)
+        );
+        this._lucid = await this._lucid.selectWalletFromSeed(seedPhrase.join(' '), { accountIndex });
+
+        // Load lucid instance for dexter.
         const lucidProvider: LucidProvider = new LucidProvider();
 
         if (! engine.config.canSubmitOrders) {
@@ -36,6 +45,10 @@ export class WalletService {
 
                 return this.loadBalances();
             });
+    }
+
+    public lucid(): Lucid {
+        return this._lucid;
     }
 
     public balanceFromAsset(assetIdentifier: string) {
