@@ -3,7 +3,6 @@ import {
     BaseWalletProvider,
     BlockfrostConfig,
     KupmiosConfig,
-    KupoProvider,
     LucidProvider,
     UTxO
 } from '@indigo-labs/dexter';
