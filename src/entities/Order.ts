@@ -136,7 +136,7 @@ export class Order {
                     request.swapOutToken === 'lovelace' ? '' : request.swapOutToken.identifier(),
                     request.slippagePercent,
                     totalFees,
-                    Math.floor(this._timestamp ?? (Date.now() / 1000)),
+                    this._timestamp ?? (Date.now() / 1000),
                     transaction.hash,
                 );
 

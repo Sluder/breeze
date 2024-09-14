@@ -59,6 +59,15 @@ export class OrderQueryRunner {
         );
     }
 
+    public async lastOrderForPair(strategy: string, tokenA: Token, tokenB: Token) {
+        return this._connection.get(
+            `SELECT * from orders WHERE strategy = :strategy AND swap_in_token ${tokenA === 'lovelace' ? 'IS NULL' : '= ' + `\'${tokenA.identifier()}\'`} AND swap_out_token ${tokenB === 'lovelace' ? 'IS NULL' : '= ' + `\'${tokenB.identifier()}\'`} ORDER BY timestamp DESC LIMIT 1`,
+            {
+                ':strategy': strategy,
+            }
+        );
+    }
+
     public async unsettledOrdersForPair(strategy: string, tokenA: Token, tokenB: Token) {
         return this._connection.all(
             `SELECT * from orders WHERE strategy = :strategy AND swap_in_token ${tokenA === 'lovelace' ? 'IS NULL' : '= ' + `\'${tokenA.identifier()}\'`} AND swap_out_token ${tokenB === 'lovelace' ? 'IS NULL' : '= ' + `\'${tokenB.identifier()}\'`} AND is_settled = 0`,

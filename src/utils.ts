@@ -74,6 +74,10 @@ export function toDexterLiquidityPool(liquidityPool: LiquidityPool): DexterLiqui
     pool.poolFeePercent = liquidityPool.state?.feePercent ?? 0;
     pool.identifier = liquidityPool.identifier;
 
+    if (liquidityPool.lpToken) {
+        pool.lpToken = new DexterAsset(liquidityPool.lpToken.policyId, liquidityPool.lpToken.nameHex);
+    }
+
     return pool;
 }
 
