@@ -15,7 +15,16 @@ export class SlackNotifier extends BaseNotifier {
         this._channelId = channelId;
     }
 
-    public async send(liquidityPool: LiquidityPool, strategyName: string, inToken: Token, outToken: Token, amount: bigint, estReceive: bigint): Promise<any> {
+    public async send(text: string): Promise<any> {
+        return this._client
+            .chat
+            .postMessage({
+                text: text,
+                channel: this._channelId,
+            });
+    }
+
+    public async sendForOrder(liquidityPool: LiquidityPool, strategyName: string, inToken: Token, outToken: Token, amount: bigint, estReceive: bigint): Promise<any> {
         const inAmount: number = formatWithDecimals(amount, inToken);
         const outAmount: number = formatWithDecimals(estReceive, outToken);
         const side: string = tokensMatch(liquidityPool.tokenA, inToken) ? 'BUY' : 'SELL';
@@ -24,17 +33,14 @@ export class SlackNotifier extends BaseNotifier {
             tokenDecimals(outToken) ?? 10
         );
 
-        return this._client
-            .chat
-            .postMessage({
-                text: [
-                    `> \`${side}\` *${liquidityPool.dex} ${liquidityPool.readableTokenATicker}/${liquidityPool.tokenB.readableTicker} @ ${price}*`,
-                    `> • *Strategy* : ${strategyName}`,
-                    `> • *In* : ${inAmount} ${inToken === 'lovelace' ? '₳' : tokenTicker(inToken)}`,
-                    `> • *Out* : ${outAmount} ${outToken === 'lovelace' ? '₳' : tokenTicker(outToken)}`,
-                ].join("\n"),
-                channel: this._channelId,
-            });
+        return this.send(
+            [
+                `> \`${side}\` *${liquidityPool.dex} ${liquidityPool.readableTokenATicker}/${liquidityPool.tokenB.readableTicker} @ ${price}*`,
+                `> • *Strategy* : ${strategyName}`,
+                `> • *In* : ${inAmount} ${inToken === 'lovelace' ? '₳' : tokenTicker(inToken)}`,
+                `> • *Out* : ${outAmount} ${outToken === 'lovelace' ? '₳' : tokenTicker(outToken)}`,
+            ].join("\n")
+        );
     }
 
 }

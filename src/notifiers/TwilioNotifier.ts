@@ -21,7 +21,11 @@ export class TwilioNotifier extends BaseNotifier {
         this._toPhoneNumber = toPhoneNumber;
     }
 
-    public async send(liquidityPool: LiquidityPool, strategyName: string, inToken: Token, outToken: Token, amount: bigint, estReceive: bigint): Promise<any> {
+    public async send(text: string): Promise<any> {
+        return Promise.resolve(undefined);
+    }
+
+    public async sendForOrder(liquidityPool: LiquidityPool, strategyName: string, inToken: Token, outToken: Token, amount: bigint, estReceive: bigint): Promise<any> {
         return this._twilio
             .messages
             .create({

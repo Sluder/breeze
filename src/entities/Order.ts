@@ -141,7 +141,7 @@ export class Order {
                 );
 
                 await this._strategy?.wallet.loadBalances();
-                await this._engine?.notifications.notify(
+                await this._engine?.notifications.notifyForOrder(
                     liquidityPool,
                     this._strategy?.identifier ?? '',
                     request.swapInToken === 'lovelace' ? 'lovelace' : new Asset(request.swapInToken.policyId, request.swapInToken.nameHex, request.swapInToken.decimals),

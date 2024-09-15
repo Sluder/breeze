@@ -9,9 +9,15 @@ export class NotificationService {
         this._notifiers = notifiers;
     }
 
-    public notify(liquidityPool: LiquidityPool, strategyName: string, inToken: Token, outToken: Token, amount: bigint, estReceive: bigint): Promise<any> {
+    public notify(text: string): Promise<any> {
         return Promise.all(
-            this._notifiers.map((notifier: BaseNotifier) => notifier.send(liquidityPool, strategyName, inToken, outToken, amount, estReceive))
+            this._notifiers.map((notifier: BaseNotifier) => notifier.send(text))
+        );
+    }
+
+    public notifyForOrder(liquidityPool: LiquidityPool, strategyName: string, inToken: Token, outToken: Token, amount: bigint, estReceive: bigint): Promise<any> {
+        return Promise.all(
+            this._notifiers.map((notifier: BaseNotifier) => notifier.sendForOrder(liquidityPool, strategyName, inToken, outToken, amount, estReceive))
         );
     }
 

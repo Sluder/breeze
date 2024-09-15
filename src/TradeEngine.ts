@@ -171,13 +171,9 @@ export class TradeEngine {
             // Run timers if strategy requests it
             if (strategy.config && (strategy.config.runEveryMilliseconds ?? 0) > 0) {
                 const timer: NodeJS.Timeout = setInterval(async () => {
-                    this.logInfo(`Strategy '${strategy.identifier}' started`);
-
                     if (strategy.onTimer) {
                         await strategy.onTimer();
                     }
-
-                    this.logInfo(`Strategy '${strategy.identifier}' completed`);
                 }, strategy.config.runEveryMilliseconds);
 
                 this._strategyTimers.push(timer);
