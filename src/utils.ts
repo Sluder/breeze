@@ -77,6 +77,9 @@ export function toDexterLiquidityPool(liquidityPool: LiquidityPool): DexterLiqui
     if (liquidityPool.lpToken) {
         pool.lpToken = new DexterAsset(liquidityPool.lpToken.policyId, liquidityPool.lpToken.nameHex);
     }
+    if (liquidityPool.state && liquidityPool.state.lpToken) {
+        pool.lpToken = new DexterAsset(liquidityPool.state.lpToken.policyId, liquidityPool.state.lpToken.nameHex);
+    }
 
     return pool;
 }

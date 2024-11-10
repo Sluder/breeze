@@ -41,26 +41,31 @@ export class AutoCancelJob extends BaseJob {
 
                const dexterLiquidityPool: DexterLiquidityPool = toDexterLiquidityPool(liquidityPool);
 
-               const transaction: DexTransaction = this._app.dexter.newCancelSwapRequest()
-                   .forDex(dexterLiquidityPool.dex)
-                   .forTransaction(pendingOrder.tx_hash)
-                   .cancel();
+               try {
+                   const transaction: DexTransaction = this._app.dexter.newCancelSwapRequest()
+                       .forDex(dexterLiquidityPool.dex)
+                       .forTransaction(pendingOrder.tx_hash)
+                       .cancel();
 
-               transaction
-                   .onSubmitted(() => {
-                       return resolve(undefined);
-                   }).onError((tx: DexTransaction) => {
+                   transaction
+                       .onSubmitted(() => {
+                           return resolve(undefined);
+                       }).onError((tx: DexTransaction) => {
                        console.error((tx.error?.reasonRaw[0] as any));
                        this._app.logError(tx.error?.reason ?? `Failed to auto-cancel`, strategy.identifier);
 
                        return reject(`Failed to auto-cancel`);
                    });
+               } catch (e: any) {
+                   console.error(e);
+                   return resolve(undefined);
+               }
            });
         });
 
         for (const promise of cancelPromises) {
             await promise
-                .catch(() => {});
+                .catch(() => Promise.resolve());
         }
 
         return Promise.resolve();

@@ -10,7 +10,7 @@ export abstract class BaseStrategy {
 
     public config: StrategyConfig | undefined;
     public app: TradeEngine;
-    public isBacktesting: boolean = true;
+    public isBacktesting: boolean = false;
     public wallet: WalletService;
 
     constructor(config?: StrategyConfig) {

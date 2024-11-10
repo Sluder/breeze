@@ -136,7 +136,7 @@ export class Order {
                     request.swapOutToken === 'lovelace' ? '' : request.swapOutToken.identifier(),
                     request.slippagePercent,
                     totalFees,
-                    this._timestamp ?? (Date.now() / 1000),
+                    Math.floor(this._timestamp ?? (Date.now() / 1000)),
                     transaction.hash,
                 );
 
@@ -151,6 +151,7 @@ export class Order {
                 );
             })
             .onError((transaction: DexTransaction) => {
+                console.error(transaction.error);
                 this._engine.logError(`\t Error submitting order: ` + transaction.error?.reasonRaw, this._strategy?.identifier ?? '');
             })
             .onFinally(async (transaction: DexTransaction) => {
