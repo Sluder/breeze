@@ -1,6 +1,5 @@
-import { Asset, LiquidityPool, Token, tokenDecimals } from '@indigo-labs/iris-sdk';
-import { Asset as DexterAsset, Token as DexterToken, LiquidityPool as DexterLiquidityPool } from '@indigo-labs/dexter';
-import { SundaeSwapV1 } from '@indigo-labs/dexter/build/dex/sundaeswap-v1';
+import { Asset, LiquidityPool, LiquidityPoolState, Token, tokenDecimals } from '@indigo-labs/iris-sdk';
+import { Asset as DexterAsset, Token as DexterToken, LiquidityPool as DexterLiquidityPool, SundaeSwapV1 } from '@indigo-labs/dexter';
 
 export function tokensMatch(tokenA: Token, tokenB: Token): boolean {
     const tokenAId: string = tokenA === 'lovelace' ? 'lovelace' : tokenA.identifier();
@@ -53,6 +52,16 @@ export function toDexterToken(token: Token): DexterToken {
     );
 }
 
+export function toIrisToken(token: DexterToken): Token {
+    if (token === 'lovelace') return 'lovelace';
+
+    return new Asset(
+        token.policyId,
+        token.nameHex,
+        token.decimals ?? 0,
+    );
+}
+
 export function toDexterLiquidityPool(liquidityPool: LiquidityPool): DexterLiquidityPool {
     let dex: string = liquidityPool.dex;
 
@@ -82,6 +91,33 @@ export function toDexterLiquidityPool(liquidityPool: LiquidityPool): DexterLiqui
     }
 
     return pool;
+}
+
+export function toIrisLiquidityPool(liquidityPool: DexterLiquidityPool): LiquidityPool {
+    let dex: string = liquidityPool.dex;
+
+    if (dex === SundaeSwapV1.identifier) {
+        dex = 'SundaeSwap';
+    }
+
+    return new LiquidityPool(
+        dex,
+        liquidityPool.identifier,
+        liquidityPool.address,
+        liquidityPool.marketOrderAddress,
+        toIrisToken(liquidityPool.assetA),
+        toIrisToken(liquidityPool.assetB) as Asset,
+        0,
+        undefined,
+        new LiquidityPoolState(
+            BigInt(liquidityPool.reserveA ?? 0),
+            BigInt(liquidityPool.reserveB ?? 0),
+            0n,
+            liquidityPool.poolFeePercent,
+            0n,
+            0
+        ),
+    );
 }
 
 export function tokenToJson(token: Token): any {

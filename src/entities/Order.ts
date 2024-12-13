@@ -10,7 +10,8 @@ import {
 } from '@indigo-labs/dexter';
 import { TradeEngine } from '@app/TradeEngine';
 import { TradeEngineConfig } from '@app/types';
-import { toDexterLiquidityPool, tokensMatch } from '@app/utils';
+import { toDexterLiquidityPool, toIrisLiquidityPool, tokensMatch } from '@app/utils';
+import { SwapInAmountMapping } from '../../../dexter';
 
 export class Order {
 
@@ -100,10 +101,58 @@ export class Order {
                     : new DexterAsset(inToken.policyId, inToken.nameHex, inToken.decimals ?? 0)
             );
 
-        return await this.send(liquidityPool, request);
+        return await this.send(request);
     }
 
-    private async send(liquidityPool: LiquidityPool, request: SwapRequest | SplitSwapRequest): Promise<DexTransaction | void> {
+    public async submitSplit(inToken: Token, mappings: SwapInAmountMapping[], slippagePercent: number = 2): Promise<DexTransaction | void> {
+        if (! this._strategy) {
+            this._engine.logError('Strategy must be set before submitting order');
+            return Promise.resolve();
+        }
+        if (! this._strategy.wallet.isWalletLoaded) {
+            this._engine.logError('Wallet not loaded');
+            return Promise.resolve();
+        }
+
+        const walletBalance: bigint = this._strategy.wallet.balanceFromAsset(inToken === 'lovelace' ? 'lovelace' : inToken.identifier()) ?? 0n;
+        const neverSpendLovelace: bigint = BigInt((this._engineConfig.neverSpendAda ?? 0) * 10**6);
+        const amount = mappings.reduce((total: bigint, mapping: SwapInAmountMapping) => total + mapping.swapInAmount, 0n);
+
+        // Check never spend ADA
+        if (
+            inToken === 'lovelace'
+            && this._engineConfig.neverSpendAda
+            && amount > walletBalance - neverSpendLovelace
+        ) {
+            this._engine.logError('Total amount over budget');
+            return Promise.resolve();
+        }
+
+        // Validate amount
+        if (amount > walletBalance) {
+            this._engine.logError(`Invalid order amount. Amount larger than wallet balance of ${walletBalance}`, this._strategy?.identifier ?? '');
+            return Promise.resolve();
+        }
+        if (amount <= 0n) {
+            this._engine.logError("Invalid order amount. 'config.neverSpendAda' could be the cause", this._strategy?.identifier ?? '');
+            return Promise.resolve();
+        }
+
+        const request: SplitSwapRequest = this._engine.dexter
+            .newSplitSwapRequest()
+            .withSlippagePercent(slippagePercent)
+            .withSwapInAmountMappings(mappings)
+            .withMetadata(this._metadata)
+            .withSwapInToken(
+                inToken === 'lovelace'
+                    ? 'lovelace'
+                    : new DexterAsset(inToken.policyId, inToken.nameHex, inToken.decimals ?? 0)
+            );
+
+        return await this.send(request);
+    }
+
+    private async send(request: SwapRequest | SplitSwapRequest): Promise<DexTransaction | void> {
         this._engine.logInfo(`\t Building swap order ...`, this._strategy?.identifier ?? '');
 
         const swapOutTokenDecimals: number = request.swapOutToken === 'lovelace' ? 6 : request.swapOutToken.decimals;
@@ -127,28 +176,7 @@ export class Order {
             .onSubmitted(async (transaction: DexTransaction) => {
                 this._engine.logInfo(`\t Order submitted: ${transaction.hash}`, this._strategy?.identifier ?? '');
 
-                await this._engine.database.orders().insert(
-                    liquidityPool.identifier,
-                    this._strategy?.identifier ?? '',
-                    request.swapInAmount,
-                    request.getMinimumReceive(),
-                    request.swapInToken === 'lovelace' ? '' : request.swapInToken.identifier(),
-                    request.swapOutToken === 'lovelace' ? '' : request.swapOutToken.identifier(),
-                    request.slippagePercent,
-                    totalFees,
-                    Math.floor(this._timestamp ?? (Date.now() / 1000)),
-                    transaction.hash,
-                );
-
-                await this._strategy?.wallet.loadBalances();
-                await this._engine?.notifications.notifyForOrder(
-                    liquidityPool,
-                    this._strategy?.identifier ?? '',
-                    request.swapInToken === 'lovelace' ? 'lovelace' : new Asset(request.swapInToken.policyId, request.swapInToken.nameHex, request.swapInToken.decimals),
-                    request.swapOutToken === 'lovelace' ? 'lovelace' : new Asset(request.swapOutToken.policyId, request.swapOutToken.nameHex, request.swapOutToken.decimals),
-                    request.swapInAmount,
-                    request.getEstimatedReceive(),
-                );
+                await this.finalize(request, transaction.hash);
             })
             .onError((transaction: DexTransaction) => {
                 console.error(transaction.error);
@@ -159,6 +187,46 @@ export class Order {
 
                 return Promise.resolve(transaction);
             });
+    }
+
+    private async finalize(request: SwapRequest | SplitSwapRequest, transactionHash: string) {
+        const totalFees: bigint = request.getSwapFees().reduce((totalFees: bigint, fee: SwapFee) => totalFees + fee.value, 0n);
+
+        const saveAndNotify = async (swapRequest: SwapRequest) => {
+            await this._engine.database.orders().insert(
+                swapRequest.liquidityPool.identifier,
+                this._strategy?.identifier ?? '',
+                request.swapInAmount,
+                request.getMinimumReceive(),
+                request.swapInToken === 'lovelace' ? '' : request.swapInToken.identifier(),
+                request.swapOutToken === 'lovelace' ? '' : request.swapOutToken.identifier(),
+                request.slippagePercent,
+                totalFees,
+                Math.floor(this._timestamp ?? (Date.now() / 1000)),
+                transactionHash,
+            );
+
+            await this._engine?.notifications.notifyForOrder(
+                toIrisLiquidityPool(swapRequest.liquidityPool),
+                this._strategy?.identifier ?? '',
+                request.swapInToken === 'lovelace' ? 'lovelace' : new Asset(request.swapInToken.policyId, request.swapInToken.nameHex, request.swapInToken.decimals),
+                request.swapOutToken === 'lovelace' ? 'lovelace' : new Asset(request.swapOutToken.policyId, request.swapOutToken.nameHex, request.swapOutToken.decimals),
+                request.swapInAmount,
+                request.getEstimatedReceive(),
+            );
+        };
+
+        if (request instanceof SwapRequest) {
+            await saveAndNotify(request);
+        } else {
+            await Promise.all(
+                request.swapRequests.map(async (request: SwapRequest) => {
+                    return saveAndNotify(request);
+                })
+            );
+        }
+
+        return this._strategy?.wallet.loadBalances();
     }
 
 }
