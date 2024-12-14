@@ -141,13 +141,18 @@ export class Order {
         const request: SplitSwapRequest = this._engine.dexter
             .newSplitSwapRequest()
             .withSlippagePercent(slippagePercent)
-            .withSwapInAmountMappings(mappings)
-            .withMetadata(this._metadata)
             .withSwapInToken(
                 inToken === 'lovelace'
                     ? 'lovelace'
                     : new DexterAsset(inToken.policyId, inToken.nameHex, inToken.decimals ?? 0)
-            );
+            )
+            .withSwapOutToken(
+                tokensMatch(inToken, mappings[0].liquidityPool.assetA as Token)
+                    ? mappings[0].liquidityPool.assetB
+                    : mappings[0].liquidityPool.assetA
+            )
+            .withSwapInAmountMappings(mappings)
+            .withMetadata(this._metadata);
 
         return await this.send(request);
     }
@@ -155,11 +160,13 @@ export class Order {
     private async send(request: SwapRequest | SplitSwapRequest): Promise<DexTransaction | void> {
         this._engine.logInfo(`\t Building swap order ...`, this._strategy?.identifier ?? '');
 
-        const swapOutTokenDecimals: number = request.swapOutToken === 'lovelace' ? 6 : request.swapOutToken.decimals;
+        if (request instanceof SwapRequest) {
+            const swapOutTokenDecimals: number = request.swapOutToken === 'lovelace' ? 6 : request.swapOutToken.decimals;
 
-        const totalFees: bigint = request.getSwapFees().reduce((totalFees: bigint, fee: SwapFee) => totalFees + fee.value, 0n);
-        this._engine.logInfo(`\t Estimated receive: ${Number(request.getEstimatedReceive()) / 10**swapOutTokenDecimals}`, this._strategy?.identifier ?? '');
-        this._engine.logInfo(`\t Total Fees: ${Number(totalFees) / 10**6} ₳`, this._strategy?.identifier ?? '');
+            const totalFees: bigint = request.getSwapFees().reduce((totalFees: bigint, fee: SwapFee) => totalFees + fee.value, 0n);
+            this._engine.logInfo(`\t Estimated receive: ${Number(request.getEstimatedReceive()) / 10**swapOutTokenDecimals}`, this._strategy?.identifier ?? '');
+            this._engine.logInfo(`\t Total Fees: ${Number(totalFees) / 10**6} ₳`, this._strategy?.identifier ?? '');
+        }
 
         if (! this._engineConfig.canSubmitOrders) {
             this._engine.logInfo(`\t Trading disabled. Skipping`, this._strategy?.identifier ?? '');
