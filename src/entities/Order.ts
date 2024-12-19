@@ -3,15 +3,14 @@ import { Asset, LiquidityPool, Token, tokenDecimals } from '@indigo-labs/iris-sd
 import {
     Asset as DexterAsset,
     DexTransaction,
-    LiquidityPool as DexterPool,
     SplitSwapRequest,
     SwapFee,
-    SwapRequest
+    SwapRequest,
+    SwapInAmountMapping
 } from '@indigo-labs/dexter';
 import { TradeEngine } from '@app/TradeEngine';
 import { TradeEngineConfig } from '@app/types';
 import { toDexterLiquidityPool, toIrisLiquidityPool, tokensMatch } from '@app/utils';
-import { SwapInAmountMapping } from '../../../dexter';
 
 export class Order {
 
