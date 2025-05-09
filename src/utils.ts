@@ -1,5 +1,4 @@
-import { Asset, LiquidityPool, LiquidityPoolState, Token, tokenDecimals } from '@indigo-labs/iris-sdk';
-import { Asset as DexterAsset, Token as DexterToken, LiquidityPool as DexterLiquidityPool, SundaeSwapV1 } from '@indigo-labs/dexter';
+import { Asset, LiquidityPool, Token, tokenDecimals } from '@indigo-labs/iris-sdk';
 
 export function tokensMatch(tokenA: Token, tokenB: Token): boolean {
     const tokenAId: string = tokenA === 'lovelace' ? 'lovelace' : tokenA.identifier();
@@ -40,84 +39,6 @@ export function unixToSlot(timestamp: number): number {
 
 export function slotToUnix(slot: number): number {
     return 1596491091 + slot - 4924800;
-}
-
-export function toDexterToken(token: Token): DexterToken {
-    if (token === 'lovelace') return 'lovelace';
-
-    return new DexterAsset(
-        token.policyId,
-        token.nameHex,
-        token.decimals ?? 0,
-    );
-}
-
-export function toIrisToken(token: DexterToken): Token {
-    if (token === 'lovelace') return 'lovelace';
-
-    return new Asset(
-        token.policyId,
-        token.nameHex,
-        token.decimals ?? 0,
-    );
-}
-
-export function toDexterLiquidityPool(liquidityPool: LiquidityPool): DexterLiquidityPool {
-    let dex: string = liquidityPool.dex;
-
-    if (dex === 'SundaeSwap') {
-        dex = SundaeSwapV1.identifier;
-    }
-
-    const pool: DexterLiquidityPool = new DexterLiquidityPool(
-        dex,
-        toDexterToken(liquidityPool.tokenA),
-        toDexterToken(liquidityPool.tokenB),
-        BigInt(liquidityPool.state?.reserveA ?? 0),
-        BigInt(liquidityPool.state?.reserveB ?? 0),
-        liquidityPool.address,
-        liquidityPool.orderAddress,
-        liquidityPool.orderAddress,
-    );
-
-    pool.poolFeePercent = liquidityPool.state?.feePercent ?? 0;
-    pool.identifier = liquidityPool.identifier;
-
-    if (liquidityPool.lpToken) {
-        pool.lpToken = new DexterAsset(liquidityPool.lpToken.policyId, liquidityPool.lpToken.nameHex);
-    }
-    if (liquidityPool.state && liquidityPool.state.lpToken) {
-        pool.lpToken = new DexterAsset(liquidityPool.state.lpToken.policyId, liquidityPool.state.lpToken.nameHex);
-    }
-
-    return pool;
-}
-
-export function toIrisLiquidityPool(liquidityPool: DexterLiquidityPool): LiquidityPool {
-    let dex: string = liquidityPool.dex;
-
-    if (dex === SundaeSwapV1.identifier) {
-        dex = 'SundaeSwap';
-    }
-
-    return new LiquidityPool(
-        dex,
-        liquidityPool.identifier,
-        liquidityPool.address,
-        liquidityPool.marketOrderAddress,
-        toIrisToken(liquidityPool.assetA),
-        toIrisToken(liquidityPool.assetB) as Asset,
-        0,
-        undefined,
-        new LiquidityPoolState(
-            BigInt(liquidityPool.reserveA ?? 0),
-            BigInt(liquidityPool.reserveB ?? 0),
-            0n,
-            liquidityPool.poolFeePercent,
-            0n,
-            0
-        ),
-    );
 }
 
 export function tokenToJson(token: Token): any {

@@ -108,6 +108,7 @@ export class Backtest {
 
         // Strategy setup
         this._engine.order = this.orderFromBacktest.bind(this);
+        this._mockWallet.loadBalances = () => Promise.resolve();
 
         // Retrieve test entities & feed into strategy
         const timestampWindows: TimestampWindows = this.generateTimestampWindows();
@@ -138,7 +139,7 @@ export class Backtest {
 
     private loadMockBalances(balances: any) {
         this._mockWallet.balances = new Map<string, bigint>([
-            ['lovelace', BigInt(balances['lovelace' ?? 1000_000000n])]
+            ['lovelace', BigInt(balances['lovelace'] ?? 1000_000000n)]
         ])
     }
 

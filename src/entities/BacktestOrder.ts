@@ -4,9 +4,6 @@ import { Order } from '@app/entities/Order';
 import { Backtest } from '@app/entities/Backtest';
 import {
     liquidityPoolToJson,
-    slotToUnix,
-    toDexterLiquidityPool,
-    toDexterToken,
     tokensMatch,
     tokenToJson
 } from '@app/utils';
@@ -64,9 +61,9 @@ export class BacktestOrder extends Order {
 
     private toSwapRequest(): SwapRequest {
         return this._engine.dexter.newSwapRequest()
-            .forLiquidityPool(toDexterLiquidityPool(this._liquidityPool))
+            .forLiquidityPool(this._liquidityPool)
             .withSlippagePercent(this._slippagePercent)
-            .withSwapInToken(toDexterToken(this._inToken))
+            .withSwapInToken(this._inToken)
             .withSwapInAmount(BigInt(this._amount));
     }
 

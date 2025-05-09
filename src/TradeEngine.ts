@@ -202,8 +202,6 @@ export class TradeEngine {
             this.loadBacktesting(),
         ]).then(() => {
             this.logInfo(`TradeEngine booted`);
-
-            // this._config.seedPhrase = [];
         });
     }
 

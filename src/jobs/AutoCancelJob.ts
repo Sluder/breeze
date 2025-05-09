@@ -1,9 +1,7 @@
 import { BaseJob } from '@app/jobs/BaseJob';
 import { BaseStrategy } from '@app/BaseStrategy';
 import { LiquidityPool } from '@indigo-labs/iris-sdk';
-import { toDexterLiquidityPool } from '@app/utils';
-import { LiquidityPool as DexterLiquidityPool } from '@indigo-labs/dexter';
-import { DexTransaction } from '@indigo-labs/dexter/build/dex/models/dex-transaction';
+import { DexTransaction } from '@indigo-labs/dexter';
 
 export class AutoCancelJob extends BaseJob {
 
@@ -39,11 +37,9 @@ export class AutoCancelJob extends BaseJob {
 
                this._app.logInfo(`Auto-cancelling ${pendingOrder.tx_hash}`, strategy.identifier);
 
-               const dexterLiquidityPool: DexterLiquidityPool = toDexterLiquidityPool(liquidityPool);
-
                try {
                    const transaction: DexTransaction = this._app.dexter.newCancelSwapRequest()
-                       .forDex(dexterLiquidityPool.dex)
+                       .forDex(liquidityPool.dex)
                        .forTransaction(pendingOrder.tx_hash)
                        .cancel();
 
@@ -51,11 +47,10 @@ export class AutoCancelJob extends BaseJob {
                        .onSubmitted(() => {
                            return resolve(undefined);
                        }).onError((tx: DexTransaction) => {
-                       console.error((tx.error?.reasonRaw[0] as any));
-                       this._app.logError(tx.error?.reason ?? `Failed to auto-cancel`, strategy.identifier);
+                           this._app.logError(tx.error?.reason ?? `Failed to auto-cancel`, strategy.identifier);
 
-                       return reject(`Failed to auto-cancel`);
-                   });
+                           return reject(`Failed to auto-cancel`);
+                       });
                } catch (e: any) {
                    console.error(e);
                    return resolve(undefined);

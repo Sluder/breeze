@@ -12,7 +12,9 @@ export class OrderService {
     }
 
     public onWebsocketMessage(message: WsResponse): Promise<any> {
-        if (! (message instanceof OperationStatus)) return Promise.resolve();
+        if (message.constructor.name !== OperationStatus.name) return Promise.resolve();
+
+        message = message as OperationStatus;
 
         const hasReceivedFunds: boolean = [DexOperationStatus.Complete, DexOperationStatus.Cancelled].includes(message.status);
 

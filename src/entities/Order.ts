@@ -1,7 +1,6 @@
 import { BaseStrategy } from '@app/BaseStrategy';
 import { Asset, LiquidityPool, Token, tokenDecimals } from '@indigo-labs/iris-sdk';
 import {
-    Asset as DexterAsset,
     DexTransaction,
     SplitSwapRequest,
     SwapFee,
@@ -10,7 +9,7 @@ import {
 } from '@indigo-labs/dexter';
 import { TradeEngine } from '@app/TradeEngine';
 import { TradeEngineConfig } from '@app/types';
-import { toDexterLiquidityPool, toIrisLiquidityPool, tokensMatch } from '@app/utils';
+import { tokensMatch } from '@app/utils';
 
 export class Order {
 
@@ -90,15 +89,11 @@ export class Order {
 
         const request: SwapRequest = this._engine.dexter
             .newSwapRequest()
-            .forLiquidityPool(toDexterLiquidityPool(liquidityPool))
+            .forLiquidityPool(liquidityPool)
             .withSlippagePercent(slippagePercent)
             .withSwapInAmount(amount)
             .withMetadata(this._metadata)
-            .withSwapInToken(
-                inToken === 'lovelace'
-                    ? 'lovelace'
-                    : new DexterAsset(inToken.policyId, inToken.nameHex, inToken.decimals ?? 0)
-            );
+            .withSwapInToken(inToken);
 
         return await this.send(request);
     }
@@ -140,15 +135,11 @@ export class Order {
         const request: SplitSwapRequest = this._engine.dexter
             .newSplitSwapRequest()
             .withSlippagePercent(slippagePercent)
-            .withSwapInToken(
-                inToken === 'lovelace'
-                    ? 'lovelace'
-                    : new DexterAsset(inToken.policyId, inToken.nameHex, inToken.decimals ?? 0)
-            )
+            .withSwapInToken(inToken)
             .withSwapOutToken(
-                tokensMatch(inToken, mappings[0].liquidityPool.assetA as Token)
-                    ? mappings[0].liquidityPool.assetB
-                    : mappings[0].liquidityPool.assetA
+                tokensMatch(inToken, mappings[0].liquidityPool.tokenA as Token)
+                    ? mappings[0].liquidityPool.tokenB
+                    : mappings[0].liquidityPool.tokenA
             )
             .withSwapInAmountMappings(mappings)
             .withMetadata(this._metadata);
@@ -160,7 +151,7 @@ export class Order {
         this._engine.logInfo(`\t Building swap order ...`, this._strategy?.identifier ?? '');
 
         if (request instanceof SwapRequest) {
-            const swapOutTokenDecimals: number = request.swapOutToken === 'lovelace' ? 6 : request.swapOutToken.decimals;
+            const swapOutTokenDecimals: number = request.swapOutToken === 'lovelace' ? 6 : (request.swapOutToken.decimals ?? 0);
 
             const totalFees: bigint = request.getSwapFees().reduce((totalFees: bigint, fee: SwapFee) => totalFees + fee.value, 0n);
             this._engine.logInfo(`\t Estimated receive: ${Number(request.getEstimatedReceive()) / 10**swapOutTokenDecimals}`, this._strategy?.identifier ?? '');
@@ -213,7 +204,7 @@ export class Order {
             );
 
             await this._engine?.notifications.notifyForOrder(
-                toIrisLiquidityPool(swapRequest.liquidityPool),
+                swapRequest.liquidityPool,
                 this._strategy?.identifier ?? '',
                 request.swapInToken === 'lovelace' ? 'lovelace' : new Asset(request.swapInToken.policyId, request.swapInToken.nameHex, request.swapInToken.decimals),
                 request.swapOutToken === 'lovelace' ? 'lovelace' : new Asset(request.swapOutToken.policyId, request.swapOutToken.nameHex, request.swapOutToken.decimals),
